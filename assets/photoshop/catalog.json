@@ -1,0 +1,578 @@
+[
+  {
+    "name": "photoshop_play_action",
+    "description": "Play a recorded action from the Actions palette",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_execute_script",
+    "description": "Execute custom ExtendScript (JSX) code inside Photoshop (advanced escape hatch).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_adjust_brightness_contrast",
+    "description": "Adjust brightness and contrast of the active layer.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_adjust_hue_saturation",
+    "description": "Adjust hue, saturation, and lightness of the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_auto_levels",
+    "description": "Apply auto levels adjustment to the active layer.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_auto_contrast",
+    "description": "Apply auto contrast adjustment to the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_adjust_curves",
+    "description": "Create a Curves adjustment layer on the active document.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_desaturate",
+    "description": "Desaturate the active layer (convert to grayscale)",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_invert",
+    "description": "Invert colors of the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_lut",
+    "description": "Apply a Color Lookup (3D LUT) adjustment layer for cinematic color grading. Accepts a built-in LUT name (e.g. \"Crisp_Warm.3dl\", \"Kodak 5218 Fuji 3510.3dl\", \"Moonlight.3dl\") or an absolute path to a .cube/.3dl/.look file.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_adjust_vibrance",
+    "description": "Create a Vibrance adjustment layer. Vibrance boosts muted colors while protecting skin tones.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_adjust_exposure",
+    "description": "Create an Exposure adjustment layer (stops, offset, gamma correction).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_photo_filter",
+    "description": "Create a Photo Filter adjustment layer (warming/cooling/custom tint with density control).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_gradient_map",
+    "description": "Create a Gradient Map adjustment layer (black\u2192white by default) for duotone/B&W tonal remapping.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_list_datasets",
+    "description": "List the data sets defined on the active document (Image > Variables > Data Sets).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_import_datasets",
+    "description": "Import a Photoshop variables/data-sets XML file into the active document (the same file Image > Variables > Data Sets > Import accepts).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_generate_from_datasets",
+    "description": "Batch-export the active document once per data set: applies each data set, saves a copy, moves on. \"Mail merge for images\".\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_create_document",
+    "description": "Create a new empty Photoshop document with specified dimensions and color mode.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_get_document_info",
+    "description": "Get information about the active Photoshop document",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_list_documents",
+    "description": "List every open Photoshop document with id, dimensions, and which tab is active (read-only).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_set_active_document",
+    "description": "Switch the active document tab by document_id (preferred), zero-based index, or name.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_save_document",
+    "description": "Save the active document to disk in PSD, JPEG, or PNG format.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_close_document",
+    "description": "Close the active Photoshop document",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_export_as",
+    "description": "Export a copy of the active document as PNG, JPEG, WebP or AVIF without changing the open document. WebP/AVIF require Photoshop 23.2+/recent builds and return a clear error when unsupported.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_gaussian_blur",
+    "description": "Apply Gaussian Blur filter to the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_sharpen",
+    "description": "Apply Unsharp Mask (sharpen) filter to the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_noise",
+    "description": "Apply Add Noise filter to the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_motion_blur",
+    "description": "Apply Motion Blur filter to the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_high_pass",
+    "description": "Apply the High Pass filter to the active raster layer \u2014 edge/detail extraction for sharpening workflows or frequency separation prep.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_smart_blur",
+    "description": "Apply the Smart Blur filter to the active raster layer \u2014 edge-preserving blur for smoothing skin or simplifying backgrounds.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_generative_upscale",
+    "description": "Upscale the active document using Generative Upscale (PS 27+).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_sky_replacement",
+    "description": "Replace the sky using Photoshop native Sky Replacement when available.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_generate_image",
+    "description": "Generate image content from a text prompt (text-to-image) on blank or active document.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_undo",
+    "description": "Undo the last operation(s) - equivalent to Ctrl/Cmd+Z",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_redo",
+    "description": "Redo the previously undone operation(s) - equivalent to Ctrl/Cmd+Shift+Z",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_get_history",
+    "description": "Get the history states of the active document",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_place_image",
+    "description": "Place an external image file as a new layer in the active document.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_open_image",
+    "description": "Open an image file as a new Photoshop document.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_resize_image",
+    "description": "Resize the active image to specified dimensions",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_crop_document",
+    "description": "Crop the document to specified bounds",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_move_layer_to_position",
+    "description": "Move the active layer relative to another layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_move_layer_to_top",
+    "description": "Move the active layer to the top of the layer stack",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_move_layer_to_bottom",
+    "description": "Move the active layer to the bottom of the layer stack",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_move_layer_up",
+    "description": "Move the active layer up one position in the layer stack",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_move_layer_down",
+    "description": "Move the active layer down one position in the layer stack",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_rasterize_layer",
+    "description": "Rasterize the active layer (convert text/smart object to normal layer)",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_set_layer_opacity",
+    "description": "Set the opacity of the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_set_layer_blend_mode",
+    "description": "Set the blend mode of the active layer.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_set_layer_visibility",
+    "description": "Show or hide the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_set_layer_locked",
+    "description": "Lock or unlock the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_rename_layer",
+    "description": "Rename the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_duplicate_layer",
+    "description": "Duplicate the active layer. The duplicate becomes the active layer; ",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_merge_visible_layers",
+    "description": "Merge all visible layers into one",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_flatten_image",
+    "description": "Flatten all layers into a single background layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_create_layer",
+    "description": "Create a new empty layer above the active layer.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_delete_layer",
+    "description": "Delete the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_create_text_layer",
+    "description": "Create a text layer with content, position, font size, and optional font.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_fill_layer",
+    "description": "Fill the active layer with a color",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_get_layers",
+    "description": "List all layers in the active document with kind, visibility, and opacity.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_select_layer_by_name",
+    "description": "Select the active layer by exact name, including layers inside groups.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_fit_layer_to_document",
+    "description": "Scale the active layer to fit the document canvas while maintaining aspect ratio",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_scale_layer",
+    "description": "Scale the active layer by a percentage",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_move_layer",
+    "description": "Move the active layer by specified offset",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_rotate_layer",
+    "description": "Rotate the active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_gradient_mask",
+    "description": "Apply a linear black-to-white gradient on the active layer mask channel (fade/blend).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_create_clipping_mask",
+    "description": "Create a clipping mask on the active layer (or a named layer).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_release_clipping_mask",
+    "description": "Release (remove) the clipping mask from the active layer (or a named layer).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_get_selection_bounds",
+    "description": "Read the active pixel selection bounds in document pixels (read-only).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_select_ellipse",
+    "description": "Create an elliptical pixel selection from a bounding box (anti-aliased).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_expand_selection",
+    "description": "Expand the active pixel selection outward by a pixel amount.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_contract_selection",
+    "description": "Contract (shrink) the active pixel selection inward by a pixel amount.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_feather_selection",
+    "description": "Feather (soften) the edges of the active pixel selection.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_save_selection",
+    "description": "Save the active pixel selection to a new alpha channel.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_select_rectangle",
+    "description": "Create a rectangular pixel selection from corner coordinates.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_select_all",
+    "description": "Select the entire document",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_deselect",
+    "description": "Deselect all selections",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_invert_selection",
+    "description": "Invert the current selection",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_create_layer_mask",
+    "description": "Create a layer mask on the active layer from the current selection (reveal selection).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_delete_layer_mask",
+    "description": "Delete the layer mask from active layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_layer_mask",
+    "description": "Apply (merge) the layer mask to the layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_select_subject",
+    "description": "Run Select Subject on the active layer (creates a pixel selection only, no mask).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_content_aware_fill",
+    "description": "Fill the current pixel selection using Content-Aware Fill.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_convert_to_smart_object",
+    "description": "Convert the active layer (or a named layer) to an embedded Smart Object.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_replace_smart_object_contents",
+    "description": "Replace the embedded contents of a Smart Object layer from an image file. Preserves transforms, warps, and Smart Filters on the layer.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_edit_smart_object_contents",
+    "description": "Open a Smart Object for editing (double-click / Edit Contents). The embedded .psb becomes the active document until you save and close it.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_create_smart_object_via_copy",
+    "description": "Create an independent Smart Object via Copy \u2014 unlinked duplicate with its own embedded contents.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_image_stack",
+    "description": "Load 2+ image files into one document, convert to a smart object and apply a stack mode (mean/median/max/min/...). Classic \"remove tourists from N shots\" or noise reduction \u2014 no generative AI involved.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_get_state",
+    "description": "Return a cheap read-only snapshot of Photoshop session state (active document, layer, selection).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_get_preview",
+    "description": "Export the active document as a base64 JPEG preview for visual verification.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_get_capabilities",
+    "description": "Return version-aware feature flags for the installed Photoshop (Select Subject v2, Generative Fill, etc.).\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_apply_layer_style",
+    "description": "Apply a layer style (drop shadow, outer glow, stroke, bevel & emboss) to the active layer via Action Manager layer effects.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_list_fonts",
+    "description": "List installed fonts available to Photoshop.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_set_text_font",
+    "description": "Set font family and size for active text layer.\\n\\n",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_set_text_color",
+    "description": "Set color for active text layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_set_text_alignment",
+    "description": "Set text alignment for active text layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_update_text_content",
+    "description": "Update the text content of active text layer",
+    "app": "photoshop"
+  },
+  {
+    "name": "photoshop_recipe_remove_background",
+    "description": "remove background",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_enhance_portrait",
+    "description": "enhance portrait",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_prepare_for_web",
+    "description": "prepare for web",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_export_social_variants",
+    "description": "export social variants",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_apply_color_grade",
+    "description": "apply color grade",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_frequency_separation",
+    "description": "frequency separation",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_batch_mockup_replace",
+    "description": "batch mockup replace",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_organize_layers",
+    "description": "organize layers",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_gradient_fade",
+    "description": "gradient fade",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_sky_blend",
+    "description": "sky blend",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_dodge_burn",
+    "description": "dodge burn",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_remove_distraction",
+    "description": "remove distraction",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_split_carousel",
+    "description": "split carousel",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_batch_watermark",
+    "description": "batch watermark",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_passport_photo",
+    "description": "passport photo",
+    "app": "photoshop",
+    "recipe": true
+  },
+  {
+    "name": "photoshop_recipe_csv_to_cards",
+    "description": "csv to cards",
+    "app": "photoshop",
+    "recipe": true
+  }
+]

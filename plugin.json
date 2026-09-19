@@ -1,0 +1,28 @@
+{
+  "id": "adobe",
+  "kind": "plugin",
+  "version": "1.0.2",
+  "label": "Adobe",
+  "description": "Control Illustrator and Photoshop from Ducky. COM/ExtendScript is automatic — no Node, no token, no extra MCP row.",
+  "min_app_version": "1.0.0",
+  "default_enabled": false,
+  "secret_keys": [],
+  "contributes": {
+    "agent.tools": {
+      "category": "adobe",
+      "intent_pattern": "\\b(adobe|illustrator|photoshop|artboard|extendscript)\\b",
+      "plan_tools": [
+        "adobe_status",
+        "adobe_list_tools",
+        "illustrator_get_document_info",
+        "illustrator_get_artboards",
+        "illustrator_get_document_structure",
+        "photoshop_get_state"
+      ]
+    }
+  },
+  "backend": {
+    "entry": "backend",
+    "register": "register"
+  }
+}
