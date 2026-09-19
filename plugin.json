@@ -1,7 +1,7 @@
 {
   "id": "adobe",
   "kind": "plugin",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "label": "Adobe",
   "description": "Control Illustrator and Photoshop from Ducky. COM/ExtendScript is automatic — no Node, no token, no extra MCP row.",
   "min_app_version": "1.0.0",
@@ -18,6 +18,257 @@
         "illustrator_get_artboards",
         "illustrator_get_document_structure",
         "photoshop_get_state"
+      ]
+    },
+    "automations": {
+      "nodes": [
+        {
+          "id": "adobe.status",
+          "label": "Adobe status",
+          "group": "Adobe",
+          "description": "Heal COM and report Illustrator / Photoshop readiness.",
+          "config_fields": []
+        },
+        {
+          "id": "illustrator.read",
+          "label": "Read Illustrator doc",
+          "group": "Adobe",
+          "description": "Read the open Illustrator document (name, size, artboards).",
+          "config_fields": []
+        },
+        {
+          "id": "illustrator.open",
+          "label": "Open Illustrator file",
+          "group": "Adobe",
+          "description": "Open a .ai path in Illustrator.",
+          "config_fields": [
+            { "id": "path", "label": "File path", "type": "string" }
+          ]
+        },
+        {
+          "id": "illustrator.save",
+          "label": "Save Illustrator doc",
+          "group": "Adobe",
+          "description": "Save the open Illustrator document.",
+          "config_fields": [
+            { "id": "path", "label": "Save path (optional)", "type": "string" }
+          ]
+        },
+        {
+          "id": "illustrator.export",
+          "label": "Export Illustrator",
+          "group": "Adobe",
+          "description": "Export artboards or selection as PNG / JPG / SVG.",
+          "config_fields": [
+            { "id": "format", "label": "Format (png/jpg/svg)", "type": "string" },
+            { "id": "target", "label": "Target (artboard:all or artboard:0)", "type": "string" },
+            { "id": "output_path", "label": "Output path (optional)", "type": "string" }
+          ]
+        },
+        {
+          "id": "photoshop.read",
+          "label": "Read Photoshop state",
+          "group": "Adobe",
+          "description": "Read the open Photoshop document.",
+          "config_fields": []
+        },
+        {
+          "id": "photoshop.export",
+          "label": "Export Photoshop",
+          "group": "Adobe",
+          "description": "Export the open Photoshop document as PNG or JPEG.",
+          "config_fields": [
+            { "id": "format", "label": "Format (png/jpg)", "type": "string" },
+            { "id": "output_path", "label": "Output path", "type": "string" }
+          ]
+        },
+        {
+          "id": "adobe.jsx",
+          "label": "Run ExtendScript",
+          "group": "Adobe",
+          "description": "Run raw JSX in Illustrator or Photoshop.",
+          "config_fields": [
+            { "id": "app", "label": "App (illustrator/photoshop)", "type": "string" },
+            { "id": "code", "label": "ExtendScript", "type": "textarea" }
+          ]
+        }
+      ],
+      "templates": [
+        {
+          "id": "adobe-brief-ducky",
+          "label": "Illustrator briefs a ducky",
+          "icon": "🎨",
+          "description": "Read the open Illustrator file and spawn a ducky with that brief.",
+          "requires_plugins": ["adobe"],
+          "systems": ["automation"],
+          "graph": {
+            "nodes": [
+              {
+                "id": "t",
+                "type": "start.manual",
+                "x": 40,
+                "y": 80,
+                "config": {},
+                "label": "Manual"
+              },
+              {
+                "id": "r",
+                "type": "illustrator.read",
+                "x": 280,
+                "y": 80,
+                "config": {},
+                "label": "Read Illustrator doc"
+              },
+              {
+                "id": "s",
+                "type": "ducky.spawn",
+                "x": 520,
+                "y": 80,
+                "config": {
+                  "title": "Illustrator",
+                  "prompt": "Adobe is in-scope. Use illustrator_* on the open document. Do the art."
+                },
+                "label": "Spawn ducky"
+              }
+            ],
+            "edges": [
+              { "source": "t", "target": "r", "kind": "main" },
+              { "source": "r", "target": "s", "kind": "main" }
+            ]
+          }
+        },
+        {
+          "id": "adobe-export-illustrator",
+          "label": "Export open Illustrator",
+          "icon": "🖼️",
+          "description": "Export every artboard from the open Illustrator file and return the files.",
+          "requires_plugins": ["adobe"],
+          "systems": ["pipeline"],
+          "graph": {
+            "nodes": [
+              {
+                "id": "s",
+                "type": "start.chat",
+                "x": 40,
+                "y": 80,
+                "config": {},
+                "label": "Chat"
+              },
+              {
+                "id": "e",
+                "type": "illustrator.export",
+                "x": 280,
+                "y": 80,
+                "config": { "format": "png", "target": "artboard:all" },
+                "label": "Export Illustrator"
+              },
+              {
+                "id": "f",
+                "type": "pipeline.finish",
+                "x": 520,
+                "y": 80,
+                "config": { "message": "Illustrator export done." },
+                "label": "Finish"
+              }
+            ],
+            "edges": [
+              { "source": "s", "target": "e", "kind": "main" },
+              { "source": "e", "target": "f", "kind": "main" }
+            ]
+          }
+        },
+        {
+          "id": "adobe-agent-then-export",
+          "label": "Ducky draws then export",
+          "icon": "🦆",
+          "description": "A ducky edits the open Illustrator file, then export PNG artboards.",
+          "requires_plugins": ["adobe"],
+          "systems": ["pipeline"],
+          "graph": {
+            "nodes": [
+              {
+                "id": "s",
+                "type": "start.chat",
+                "x": 40,
+                "y": 80,
+                "config": {},
+                "label": "Chat"
+              },
+              {
+                "id": "a",
+                "type": "pipeline.agent",
+                "x": 260,
+                "y": 80,
+                "config": {
+                  "title": "Illustrator",
+                  "prompt": "Adobe is in-scope. Call illustrator_get_document_info, do the requested art with illustrator_*, then stop."
+                },
+                "label": "Agent"
+              },
+              {
+                "id": "e",
+                "type": "illustrator.export",
+                "x": 500,
+                "y": 80,
+                "config": { "format": "png", "target": "artboard:all" },
+                "label": "Export Illustrator"
+              },
+              {
+                "id": "f",
+                "type": "pipeline.finish",
+                "x": 740,
+                "y": 80,
+                "config": { "message": "Art exported." },
+                "label": "Finish"
+              }
+            ],
+            "edges": [
+              { "source": "s", "target": "a", "kind": "main" },
+              { "source": "a", "target": "e", "kind": "main" },
+              { "source": "e", "target": "f", "kind": "main" }
+            ]
+          }
+        },
+        {
+          "id": "adobe-export-photoshop",
+          "label": "Export open Photoshop",
+          "icon": "📸",
+          "description": "Export the open Photoshop document as PNG.",
+          "requires_plugins": ["adobe"],
+          "systems": ["pipeline"],
+          "graph": {
+            "nodes": [
+              {
+                "id": "s",
+                "type": "start.chat",
+                "x": 40,
+                "y": 80,
+                "config": {},
+                "label": "Chat"
+              },
+              {
+                "id": "e",
+                "type": "photoshop.export",
+                "x": 280,
+                "y": 80,
+                "config": { "format": "png" },
+                "label": "Export Photoshop"
+              },
+              {
+                "id": "f",
+                "type": "pipeline.finish",
+                "x": 520,
+                "y": 80,
+                "config": { "message": "Photoshop export done." },
+                "label": "Finish"
+              }
+            ],
+            "edges": [
+              { "source": "s", "target": "e", "kind": "main" },
+              { "source": "e", "target": "f", "kind": "main" }
+            ]
+          }
+        }
       ]
     }
   },

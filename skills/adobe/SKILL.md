@@ -56,6 +56,14 @@ instance that has the document. Do not treat `com: false` as offline.
 
 `adobe_execute_jsx(app="illustrator"|"photoshop", code=...)` is last-ditch.
 
+## Automations + Pipelines
+
+Premade tiles (both palettes unless noted): `adobe.status`, `illustrator.read` /
+`open` / `save` / `export`, `photoshop.read` / `export`, `adobe.jsx`.
+
+Templates: **Illustrator briefs a ducky** (Automations), **Export open
+Illustrator**, **Ducky draws then export**, **Export open Photoshop** (Pipelines).
+
 Exports → `%LOCALAPPDATA%/UEFN-Ducky/tool_captures/`.
 
 Coordinates: CMYK/print → document origin; RGB/web → artboard-web.

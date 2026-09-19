@@ -72,4 +72,10 @@ def register(api: Any) -> None:
         register_photoshop_tools(api)
     except Exception as exc:
         api.log(f"Adobe Photoshop tools skipped: {exc}")
+    try:
+        from .automations import register_nodes
+
+        register_nodes(api)
+    except Exception as exc:
+        api.log(f"Adobe automation nodes skipped: {exc}")
     api.log("Adobe plugin registered")

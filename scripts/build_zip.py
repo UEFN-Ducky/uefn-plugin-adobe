@@ -33,7 +33,7 @@ def _prune_superseded_zips(keep: pathlib.Path | None = None) -> None:
             z.unlink()
         except OSError:
             pass
-SKIP_NAMES = {".git", "scripts", "deploy", ".gitignore", "README.md", "__pycache__"}
+SKIP_NAMES = {".git", "scripts", "deploy", ".gitignore", "README.md", "__pycache__", ".pytest_cache"}
 SKIP_SUFFIX = {".pyc", ".pyo", ".zip", ".ducky-plugin"}
 
 
