@@ -29,9 +29,9 @@ def register(api: Any) -> None:
             pass
 
     @api.tool(name="adobe_status", intent=INTENT, listener=False)
-    def adobe_status() -> str:
-        """Heal COM and report Illustrator / Photoshop readiness."""
-        return json.dumps(build_status(), indent=2, default=str)
+    def adobe_status(app: str = "") -> str:
+        """Report Illustrator / Photoshop readiness. Only the named app is launched; omit to never launch."""
+        return json.dumps(build_status(app=app), indent=2, default=str)
 
     @api.tool(name="adobe_list_tools", intent=INTENT, listener=False)
     def adobe_list_tools() -> str:
@@ -44,9 +44,9 @@ def register(api: Any) -> None:
         )
 
     @api.tool(name="adobe_redeploy", intent=INTENT, listener=False)
-    def adobe_redeploy() -> str:
-        """Re-detect Adobe installs, launch if needed, ping COM."""
-        live = ensure_live()
+    def adobe_redeploy(app: str = "") -> str:
+        """Re-detect Adobe installs and ping COM. Only the named app is launched; omit to never launch."""
+        live = ensure_live(app)
         return json.dumps(build_status(live), indent=2, default=str)
 
     @api.tool(name="adobe_execute_jsx", intent=INTENT, listener=False)

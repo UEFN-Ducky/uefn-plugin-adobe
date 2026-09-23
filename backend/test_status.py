@@ -175,6 +175,31 @@ def test_classify_ready_from_open_document_window() -> None:
     assert classify(apps) == "ready"
 
 
+def test_ensure_live_launches_only_named_app() -> None:
+    from pathlib import Path
+
+    from backend import heal
+
+    ai = Path(r"C:\Program Files\Adobe\Adobe Illustrator 2026\Support Files\Contents\Windows\Illustrator.exe")
+    ps = Path(r"C:\Program Files\Adobe\Adobe Photoshop 2026\Photoshop.exe")
+    with (
+        patch("backend.heal._launch") as launch,
+        patch("backend.heal._win_exe_running", return_value=False),
+        patch("backend.heal.ping_app") as ping,
+        patch("backend.heal.illustrator_exes", return_value=[ai]),
+        patch("backend.heal.photoshop_exes", return_value=[ps]),
+    ):
+        heal.ensure_live()
+        launch.assert_not_called()
+        ping.assert_not_called()
+
+        heal.ensure_live("illustrator")
+        assert launch.call_count == 1
+        assert launch.call_args.args[0] == ai
+        assert all(call.args[0] != ps for call in launch.call_args_list)
+        assert all(call.args[0] != "Photoshop.Application" for call in ping.call_args_list)
+
+
 def test_document_name_from_title() -> None:
     from backend.heal import document_name_from_title
 

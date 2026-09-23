@@ -17,8 +17,10 @@ binds the **empty Beta**. Tools therefore:
 
 PowerShell `DoJavaScript` first; `TYPE_E_LIBNOTREGISTERED` falls back to `cscript`.
 
-`adobe_status` heals only when nothing is running. If a `.ai` window exists,
-the file is open — call `illustrator_get_document_info`.
+Work in one app = call only that app's tools. `adobe_status` never opens the
+other app; pass `app="illustrator"` or `app="photoshop"` to open one. Omit
+`app` and nothing launches. If a `.ai` window exists, the file is open —
+call `illustrator_get_document_info`.
 
 Official Illustrator Beta MCP (`http://127.0.0.1:18412/v1/mcp`) is a **bonus line**
 on `adobe_status.official_mcp.reachable`. Never ask for a token.

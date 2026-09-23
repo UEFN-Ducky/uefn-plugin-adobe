@@ -219,7 +219,7 @@ def _launch(exe: Path) -> None:
     subprocess.Popen([str(exe)], close_fds=True)
 
 
-def _ensure(app: str, exe_name: str, find, progid: str) -> dict[str, Any]:
+def _ensure(app: str, exe_name: str, find, progid: str, *, launch: bool) -> dict[str, Any]:
     exes = find()
     running = _win_exe_running(exe_name)
     if not exes and not running:
@@ -232,12 +232,24 @@ def _ensure(app: str, exe_name: str, find, progid: str) -> dict[str, Any]:
             "error": f"{app} not found under Program Files\\Adobe",
         }
     # Never launch a second edition (Beta vs 2026) — Beta steals Illustrator.Application.
-    if not running and exes:
+    # Never launch an app the caller did not name — COM CreateObject would open it anyway.
+    if launch and not running and exes:
         _launch(exes[0])
         for _ in range(20):
             time.sleep(0.5)
             if _win_exe_running(exe_name):
                 break
+    running = _win_exe_running(exe_name)
+    if not running:
+        return {
+            "installed": bool(exes),
+            "running": False,
+            "exe": str(exes[0]) if exes else "",
+            "com": False,
+            "version": "",
+            "open_documents": [],
+            "error": "not running",
+        }
     ok, detail = ping_app(progid)
     docs = _open_docs(exe_name)
     return {
@@ -287,10 +299,33 @@ def snapshot_apps() -> dict[str, Any]:
     }
 
 
-def ensure_live() -> dict[str, Any]:
+def _want_app(app: str) -> str:
+    raw = (app or "").strip().lower()
+    if raw.startswith("ill"):
+        return "illustrator"
+    if raw.startswith("pho") or raw == "ps":
+        return "photoshop"
+    return ""
+
+
+def ensure_live(app: str = "") -> dict[str, Any]:
+    """Probe both apps. Launch only the one named in ``app`` (illustrator / photoshop)."""
+    want = _want_app(app)
     return {
-        "illustrator": _ensure("Illustrator", "Illustrator.exe", illustrator_exes, "Illustrator.Application"),
-        "photoshop": _ensure("Photoshop", "Photoshop.exe", photoshop_exes, "Photoshop.Application"),
+        "illustrator": _ensure(
+            "Illustrator",
+            "Illustrator.exe",
+            illustrator_exes,
+            "Illustrator.Application",
+            launch=want == "illustrator",
+        ),
+        "photoshop": _ensure(
+            "Photoshop",
+            "Photoshop.exe",
+            photoshop_exes,
+            "Photoshop.Application",
+            launch=want == "photoshop",
+        ),
     }
 
 
@@ -307,5 +342,5 @@ def cheap_online() -> tuple[bool, str]:
             bits.append("Photoshop")
         return True, "Connected · " + " + ".join(bits)
     if illustrator_exes() or photoshop_exes():
-        return False, "Offline · open Illustrator or Photoshop (heal launches on adobe_status)"
+        return False, "Offline · Illustrator / Photoshop installed, not running"
     return False, "Offline · Adobe Illustrator / Photoshop not installed"

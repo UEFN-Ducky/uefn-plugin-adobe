@@ -24,6 +24,9 @@ A window titled `Something.ai` means the file **is open**. Read it with
 `illustrator_get_document_info` and do the work. Do not ask the user to
 switch apps, click the file, or restart Ducky.
 
+Work in one app = call only that app's tools. `adobe_status` never opens the
+other app; pass `app="illustrator"` or `app="photoshop"` to open one.
+
 Ducky is the MCP server (`adobe_*`, `illustrator_*`, `photoshop_*`).
 COM / ExtendScript talks to the apps. **No UEFN listener required.**
 
@@ -40,7 +43,7 @@ Never `npx`. Never a Cursor `mcp.json` row. Never a Bearer token.
 | state | Meaning |
 |-------|---------|
 | `missing_app` | Neither app installed |
-| `launching` | Installed but **not running** yet |
+| `launching` | Installed but **not running**. `adobe_status(app=...)` opens only that app |
 | `ready` | Running and/or COM live — **do the work** |
 | `error` | COM failed — `adobe_redeploy` once, then read again |
 

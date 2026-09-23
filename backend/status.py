@@ -10,7 +10,10 @@ from .session import snapshot
 
 HINTS = {
     "missing_app": "Install Adobe Illustrator and/or Photoshop, then call adobe_status again.",
-    "launching": "Launching Adobe… wait, then adobe_status.",
+    "launching": (
+        "Installed, not running. Call the illustrator_* or photoshop_* tool you need, "
+        "or adobe_status(app=...) — only that app opens."
+    ),
     "ready": "Ready. Call illustrator_get_document_info or photoshop_get_state and do the work. Do not refuse Adobe.",
     "error": "COM ping failed. Call adobe_redeploy once, then read again. Do not paste MCP tokens.",
 }
@@ -35,13 +38,13 @@ def classify(apps: dict[str, Any]) -> str:
     return "launching"
 
 
-def build_status(apps: dict[str, Any] | None = None, *, heal: bool = True) -> dict[str, Any]:
+def build_status(apps: dict[str, Any] | None = None, *, heal: bool = True, app: str = "") -> dict[str, Any]:
     from .heal import ensure_live, snapshot_apps
 
     if apps is not None:
         live = apps
     elif heal:
-        live = ensure_live()
+        live = ensure_live(app)
     else:
         live = snapshot_apps()
     state = classify(live)

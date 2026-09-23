@@ -57,10 +57,11 @@ def _wrap(result: Any) -> dict[str, Any]:
     return result
 
 
-def handle_status(_ctx: dict[str, Any]) -> dict[str, Any]:
+def handle_status(ctx: dict[str, Any]) -> dict[str, Any]:
     from .status import build_status
 
-    return build_status()
+    cfg, payload = _pair(ctx)
+    return build_status(app=_pick(cfg, payload, "app"))
 
 
 def handle_illustrator_read(_ctx: dict[str, Any]) -> dict[str, Any]:

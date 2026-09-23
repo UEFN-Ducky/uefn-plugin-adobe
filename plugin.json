@@ -1,7 +1,7 @@
 {
   "id": "adobe",
   "kind": "plugin",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "label": "Adobe",
   "description": "Control Illustrator and Photoshop from Ducky. COM/ExtendScript is automatic — no Node, no token, no extra MCP row.",
   "min_app_version": "1.0.0",
@@ -26,8 +26,10 @@
           "id": "adobe.status",
           "label": "Adobe status",
           "group": "Adobe",
-          "description": "Heal COM and report Illustrator / Photoshop readiness.",
-          "config_fields": []
+          "description": "Report Illustrator / Photoshop readiness. Leave App empty to never launch; set it to open only that app.",
+          "config_fields": [
+            { "id": "app", "label": "App to launch (illustrator/photoshop, optional)", "type": "string" }
+          ]
         },
         {
           "id": "illustrator.read",
