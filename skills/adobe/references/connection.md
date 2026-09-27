@@ -1,6 +1,8 @@
 ---
 name: connection
-description: Adobe COM heal, status states, official MCP probe
+description: "Adobe COM heal, status states, and the official MCP probe"
+metadata:
+  label: Connection
 ---
 
 # Adobe connection

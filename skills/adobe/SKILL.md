@@ -1,12 +1,10 @@
 ---
 name: adobe
-description: >-
-  HARD: every Ducky drives Illustrator/Photoshop with illustrator_* /
-  photoshop_*. Never refuse as out of lane. Call the tools and do the art.
+description: "Drive Illustrator and Photoshop with illustrator_* and photoshop_*. Adobe is in lane for every Ducky — call the tools and do the art."
 license: MIT
 metadata:
   label: Adobe
-  version: 2
+  version: 3
   author: UEFN-Ducky
   copyright: Copyright 2026 Mindful Path Company, LLC
   allow_redistribute: true
@@ -72,4 +70,4 @@ Exports → `%LOCALAPPDATA%/UEFN-Ducky/tool_captures/`.
 Coordinates: CMYK/print → document origin; RGB/web → artboard-web.
 Override with `illustrator_set_workflow`.
 
-Details: `skill_read_subskill("adobe", "connection")`.
+Details: `skill_read_subskill("adobe", "<id>")` — `connection`, `illustrator`, `photoshop`.
