@@ -12,7 +12,7 @@ Desktop plugin id `adobe`. Install from the UEFN Ducky Store. Do not sideload.
 py scripts/build_zip.py
 ```
 
-Writes `deploy/adobe-1.0.4.ducky-plugin.zip`.
+Writes `deploy/adobe-1.0.6.ducky-plugin.zip`.
 
 Automations + Pipelines tiles: `adobe.status`, `illustrator.read` / `open` /
 `save` / `export`, `photoshop.read` / `export`, `adobe.jsx`. Drop-in templates

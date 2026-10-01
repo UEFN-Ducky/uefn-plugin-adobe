@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -104,6 +105,13 @@ def _vbs_dojavascript(progid: str, jsx_path: Path, binds: list[str]) -> str:
     return "\n".join(lines)
 
 
+def _system_exe(rel: str, fallback: str) -> str:
+    # Absolute path: the host PATH can hold unexpanded "%SystemRoot%" entries (WinError 2).
+    root = os.environ.get("SystemRoot") or os.environ.get("SYSTEMROOT") or r"C:\Windows"
+    path = Path(root) / rel
+    return str(path) if path.is_file() else fallback
+
+
 def _run_hidden(argv: list[str], timeout: float) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         argv,
@@ -144,7 +152,7 @@ def _exec_jsx(progid: str, full_jsx: str, *, activate: bool, timeout: float) -> 
     try:
         r = _run_hidden(
             [
-                "powershell",
+                _system_exe(r"System32\WindowsPowerShell\v1.0\powershell.exe", "powershell"),
                 "-NoProfile",
                 "-ExecutionPolicy",
                 "Bypass",
@@ -157,7 +165,7 @@ def _exec_jsx(progid: str, full_jsx: str, *, activate: bool, timeout: float) -> 
         if r.returncode == 0 and "TYPE_E_LIBNOTREGISTERED" not in err and "8002801D" not in err:
             return
         vbs_path.write_text(_vbs_dojavascript(progid, jsx_path, binds), encoding="utf-8")
-        r2 = _run_hidden(["cscript", "//Nologo", str(vbs_path)], timeout)
+        r2 = _run_hidden([_system_exe(r"System32\cscript.exe", "cscript"), "//Nologo", str(vbs_path)], timeout)
         if r2.returncode != 0:
             raise RuntimeError((r2.stderr or r2.stdout or err or "COM failed").strip())
     finally:
