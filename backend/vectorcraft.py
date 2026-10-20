@@ -23,7 +23,8 @@ PLUGIN_ID = "adobe"
 INTENT = r"\b(vectorcraft|vector ?craft)\b"
 # PhotoCraft holds 47878.
 DEFAULT_PORT = 47879
-CONNECT_TIMEOUT = 2.0
+# Loopback: a listening port connects at once; Windows takes ~2 s to refuse a closed one.
+CONNECT_TIMEOUT = 0.5
 # VectorCraft replies within 60s or answers with a timeout error itself.
 REPLY_TIMEOUT = 75.0
 LAUNCH_WAIT = 30.0
