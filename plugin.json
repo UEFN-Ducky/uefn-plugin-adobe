@@ -6,6 +6,7 @@
   "description": "Control Illustrator, Photoshop, PhotoCraft and VectorCraft from Ducky. COM/ExtendScript and the Craft apps' local control servers are automatic — no Node, no token, no extra MCP row.",
   "min_app_version": "1.2.357",
   "default_enabled": false,
+  "data_sharing": false,
   "secret_keys": [],
   "contributes": {
     "agent.tools": {
