@@ -22,6 +22,11 @@ DUCKY_PR.time = function (seconds) {
     return t;
 };
 
+// Component keyframes live in the clip's source time; callers give sequence seconds.
+DUCKY_PR.keyTime = function (clip, seqSeconds) {
+    return DUCKY_PR.secs(clip.inPoint) + Number(seqSeconds) - DUCKY_PR.secs(clip.start);
+};
+
 DUCKY_PR.fps = function (seq) {
     try { if (seq && seq.timebase) return DUCKY_PR.TICKS / parseInt(seq.timebase, 10); } catch (e) {}
     return 30;
@@ -287,7 +292,9 @@ PR_CMD.get_clip = function (p) {
             var v = null;
             try { v = pr.getValue(); } catch (eV) {}
             if (v !== null && typeof v === "object" && !DUCKY.isArray(v)) v = String(v);
-            row.properties.push({ name: pr.displayName, value: v });
+            var prow = { name: pr.displayName, value: v };
+            if (comp.displayName === "Volume" && pr.displayName === "Level" && typeof v === "number") prow.db = DUCKY_PR.levelToDb(v);
+            row.properties.push(prow);
         }
         o.components.push(row);
     }
@@ -406,7 +413,15 @@ PR_CMD.set_clip = function (p) {
     if (DUCKY.has(p, "out_point")) c.outPoint = DUCKY_PR.time(p.out_point);
     if (DUCKY.has(p, "start")) c.start = DUCKY_PR.time(p.start);
     if (DUCKY.has(p, "end")) c.end = DUCKY_PR.time(p.end);
-    if (DUCKY.has(p, "move_by")) c.move(DUCKY_PR.time(p.move_by));
+    if (DUCKY.has(p, "slip")) {
+        // Slip: same place on the timeline, different part of the source.
+        var d = Number(p.slip);
+        if (DUCKY_PR.secs(c.inPoint) + d < 0) throw new Error("slip of " + d + " s runs past the start of the source");
+        c.inPoint = DUCKY_PR.time(DUCKY_PR.secs(c.inPoint) + d);
+        c.outPoint = DUCKY_PR.time(DUCKY_PR.secs(c.outPoint) + d);
+    }
+    // TrackItem.move takes seconds (a number), not a Time.
+    if (DUCKY.has(p, "move_by")) c.move(Number(p.move_by));
     if (DUCKY.has(p, "speed")) c.setSpeed(Number(p.speed), DUCKY_PR.time(0), false, false, false);
     return DUCKY_PR.clipSummary(c, -1);
 };
@@ -447,9 +462,10 @@ PR_CMD.set_effect_property = function (p) {
             var pr = comp.properties[j];
             if (pr.displayName !== String(p.property)) continue;
             if (DUCKY.has(p, "time")) {
+                var kt = DUCKY_PR.keyTime(c, p.time);
                 if (!pr.isTimeVarying()) pr.setTimeVarying(true);
-                pr.addKey(DUCKY_PR.time(p.time));
-                pr.setValueAtKey(DUCKY_PR.time(p.time), p.value, true);
+                pr.addKey(kt);
+                pr.setValueAtKey(kt, p.value, true);
             } else {
                 pr.setValue(p.value, true);
             }
@@ -464,10 +480,231 @@ PR_CMD.set_effect_property = function (p) {
 
 PR_CMD.remove_clip = function (p) {
     var s = DUCKY_PR.sequence(p);
-    var c = DUCKY_PR.clip(s, p).clip;
+    var found = DUCKY_PR.clip(s, p);
+    var c = found.clip;
     var name = c.name;
-    c.remove(!!p.ripple, true);
-    return { removed: name, ripple: !!p.ripple };
+    var start = DUCKY_PR.secs(c.start);
+    var gap = DUCKY_PR.secs(c.end) - start;
+    var linked = DUCKY_PR.linkedItems(c);
+    // The tracks holding the linked clips (usually the audio under a video clip).
+    var tracks = [found.track.track];
+    var lists = [s.videoTracks, s.audioTracks];
+    for (var k = 0; k < lists.length; k++) {
+        for (var t = 0; t < lists[k].numTracks; t++) {
+            var tr = lists[k][t];
+            if (tr === found.track.track) continue;
+            for (var ci = 0; ci < tr.clips.numItems; ci++) {
+                var hit = false;
+                for (var li = 0; li < linked.length; li++) if (String(tr.clips[ci].nodeId) === String(linked[li].nodeId)) hit = true;
+                if (hit) { tracks.push(tr); break; }
+            }
+        }
+    }
+    c.remove(false, true);
+    var moved = 0;
+    if (p.ripple) {
+        // remove(true, ...) does not reliably close the gap: remove the linked clips and
+        // shift the later clips on those tracks left ourselves, first to last.
+        for (var lr = 0; lr < linked.length; lr++) {
+            try { linked[lr].remove(false, true); } catch (eL) {}
+        }
+        for (var ti = 0; ti < tracks.length; ti++) {
+            var clips = tracks[ti].clips;
+            for (var i = 0; i < clips.numItems; i++) {
+                if (DUCKY_PR.secs(clips[i].start) >= start - 0.001) { clips[i].move(-gap); moved++; }
+            }
+        }
+    }
+    return { removed: name, ripple: !!p.ripple, gap: gap, linked_removed: p.ripple ? linked.length : 0, clips_moved: moved };
+};
+
+// ---------------------------------------------------------------- link, J / L cuts, roll
+
+DUCKY_PR.linkedItems = function (c) {
+    var out = [];
+    try {
+        var items = c.getLinkedItems();
+        if (items) {
+            for (var i = 0; i < items.numItems; i++) {
+                if (items[i] && items[i].nodeId !== c.nodeId) out.push(items[i]);
+            }
+        }
+    } catch (e) { /* older Premiere: no getLinkedItems */ }
+    return out;
+};
+
+DUCKY_PR.deselectAll = function (s) {
+    var lists = [s.videoTracks, s.audioTracks];
+    for (var k = 0; k < lists.length; k++) {
+        for (var t = 0; t < lists[k].numTracks; t++) {
+            var clips = lists[k][t].clips;
+            for (var i = 0; i < clips.numItems; i++) {
+                try { clips[i].setSelected(0, 0); } catch (e) {}
+            }
+        }
+    }
+};
+
+// linkSelection / unlinkSelection act on the active sequence's selection.
+DUCKY_PR.withSelection = function (s, clips, action) {
+    DUCKY_PR.project().activeSequence = s;
+    DUCKY_PR.deselectAll(s);
+    for (var i = 0; i < clips.length; i++) clips[i].setSelected(1, 1);
+    if (action === "link") s.linkSelection();
+    else s.unlinkSelection();
+    DUCKY_PR.deselectAll(s);
+};
+
+DUCKY_PR.clipsFrom = function (s, p) {
+    var specs = DUCKY.isArray(p.clips) ? p.clips : [p];
+    var out = [];
+    for (var i = 0; i < specs.length; i++) {
+        var spec = specs[i];
+        if (!DUCKY.has(spec, "sequence") && !DUCKY.has(spec, "sequence_id")) spec.sequence_id = s.sequenceID;
+        out.push(DUCKY_PR.clip(s, spec).clip);
+    }
+    return out;
+};
+
+PR_CMD.unlink = function (p) {
+    var s = DUCKY_PR.sequence(p);
+    var clips = DUCKY_PR.clipsFrom(s, p);
+    var before = 0;
+    var selection = clips.slice(0);
+    for (var i = 0; i < clips.length; i++) {
+        // Select the partners too: with Linked Selection off, only the named clip would be selected.
+        var partners = DUCKY_PR.linkedItems(clips[i]);
+        before += partners.length;
+        for (var pi = 0; pi < partners.length; pi++) selection.push(partners[pi]);
+    }
+    DUCKY_PR.withSelection(s, selection, "unlink");
+    var after = 0;
+    for (var j = 0; j < clips.length; j++) after += DUCKY_PR.linkedItems(clips[j]).length;
+    return { clips: clips.length, linked_before: before, linked_after: after };
+};
+
+PR_CMD.link = function (p) {
+    var s = DUCKY_PR.sequence(p);
+    var clips = DUCKY_PR.clipsFrom(s, p);
+    if (clips.length < 2) throw new Error("clips: pass the video clip and the audio clip(s) to link");
+    DUCKY_PR.withSelection(s, clips, "link");
+    return { clips: clips.length, linked_after: DUCKY_PR.linkedItems(clips[0]).length };
+};
+
+DUCKY_PR.clipAt = function (track, edge, t) {
+    var clips = track.clips;
+    for (var i = 0; i < clips.numItems; i++) {
+        var at = DUCKY_PR.secs(edge === "end" ? clips[i].end : clips[i].start);
+        if (Math.abs(at - t) < 0.02) return clips[i];
+    }
+    return null;
+};
+
+// Move the cut between two adjacent clips on one track by d seconds (positive = later).
+// The shrinking side moves first so the two clips never overlap.
+DUCKY_PR.roll = function (prev, next, d) {
+    var cut = DUCKY_PR.secs(next.start);
+    var nextIn = DUCKY_PR.secs(next.inPoint);
+    if (nextIn + d < 0) throw new Error("the incoming clip has only " + nextIn.toFixed(2) + " s of source before its in point");
+    if (d < 0) {
+        prev.end = DUCKY_PR.time(cut + d);
+        next.start = DUCKY_PR.time(cut + d);
+        next.inPoint = DUCKY_PR.time(nextIn + d);
+    } else {
+        next.start = DUCKY_PR.time(cut + d);
+        next.inPoint = DUCKY_PR.time(nextIn + d);
+        prev.end = DUCKY_PR.time(cut + d);
+    }
+    return { cut_before: cut, cut_after: DUCKY_PR.secs(next.start), prev_end: DUCKY_PR.secs(prev.end) };
+};
+
+PR_CMD.roll_edit = function (p) {
+    var s = DUCKY_PR.sequence(p);
+    var found = DUCKY_PR.clip(s, p);
+    var next = found.clip;
+    var prev = DUCKY_PR.clipAt(found.track.track, "end", DUCKY_PR.secs(next.start));
+    if (!prev) throw new Error("no clip ends where '" + next.name + "' starts: roll edits need two touching clips");
+    if (!DUCKY.has(p, "delta")) throw new Error("delta (seconds; negative = earlier) required");
+    var r = DUCKY_PR.roll(prev, next, Number(p.delta));
+    if (Math.abs(r.cut_after - (r.cut_before + Number(p.delta))) > 0.05) throw new Error("Premiere did not move the cut (the outgoing clip may have no source left)");
+    return r;
+};
+
+// J cut: the next shot's sound starts `offset` s before its picture.
+// L cut: the previous shot's sound carries `offset` s past the picture cut.
+PR_CMD.split_edit = function (p) {
+    var s = DUCKY_PR.sequence(p);
+    var type = DUCKY.has(p, "type") ? String(p.type).toUpperCase() : "J";
+    if (type !== "J" && type !== "L") throw new Error("type must be J or L");
+    var d = DUCKY.num(p.offset, 0.5);
+    if (d <= 0) throw new Error("offset must be positive seconds");
+    var vFound = DUCKY_PR.clip(s, { sequence_id: s.sequenceID, track: DUCKY.num(p.track, 0), track_type: "video", clip_index: p.clip_index, clip: p.clip, time: p.time });
+    var cut = DUCKY_PR.secs(vFound.clip.start);
+    var vPrev = DUCKY_PR.clipAt(vFound.track.track, "end", cut);
+    if (!vPrev) throw new Error("no video clip ends where '" + vFound.clip.name + "' starts");
+    var aTrack = DUCKY_PR.track(s, { track: DUCKY.num(p.audio_track, 0), track_type: "audio" }).track;
+    var aNext = DUCKY_PR.clipAt(aTrack, "start", cut);
+    var aPrev = DUCKY_PR.clipAt(aTrack, "end", cut);
+    if (!aNext || !aPrev) throw new Error("audio track " + DUCKY.num(p.audio_track, 0) + " has no cut at " + cut.toFixed(2) + " s to match the picture");
+    DUCKY_PR.withSelection(s, [vPrev, vFound.clip, aPrev, aNext], "unlink");
+    var r = DUCKY_PR.roll(aPrev, aNext, type === "J" ? -d : d);
+    var want = type === "J" ? cut - d : cut + d;
+    if (Math.abs(r.cut_after - want) > 0.05) throw new Error("Premiere did not move the audio cut (not enough source on one side)");
+    return { type: type, picture_cut: cut, audio_cut: r.cut_after, offset: d, unlinked: true };
+};
+
+// ---------------------------------------------------------------- audio levels
+
+// Premiere stores clip Volume Level as linear amplitude where the panel's 0 dB is
+// 0.17783: level = 10^((dB - 15) / 20) (measured by hetpatel-11/Adobe_Premiere_Pro_MCP).
+DUCKY_PR.DB_OFFSET = 15;
+DUCKY_PR.dbToLevel = function (db) { return Math.pow(10, (Number(db) - DUCKY_PR.DB_OFFSET) / 20); };
+DUCKY_PR.levelToDb = function (v) { return v > 0 ? 20 * Math.log(v) / Math.LN10 + DUCKY_PR.DB_OFFSET : null; };
+
+DUCKY_PR.levelProp = function (c) {
+    for (var i = 0; i < c.components.numItems; i++) {
+        var comp = c.components[i];
+        if (comp.displayName !== "Volume") continue;
+        for (var j = 0; j < comp.properties.numItems; j++) {
+            if (comp.properties[j].displayName === "Level") return comp.properties[j];
+        }
+    }
+    throw new Error("clip '" + c.name + "' has no Volume > Level (is it an audio clip?)");
+};
+
+PR_CMD.set_volume = function (p) {
+    var s = DUCKY_PR.sequence(p);
+    var spec = {};
+    for (var k in p) if (p.hasOwnProperty(k)) spec[k] = p[k];
+    if (!DUCKY.has(spec, "track_type")) spec.track_type = "audio";
+    var c = DUCKY_PR.clip(s, spec).clip;
+    var prop = DUCKY_PR.levelProp(c);
+    var before = null;
+    try { before = DUCKY_PR.levelToDb(prop.getValue()); } catch (eV) {}
+    var keys = DUCKY.isArray(p.keys) ? p.keys : [];
+    if (keys.length > 0) {
+        if (!prop.isTimeVarying()) prop.setTimeVarying(true);
+        for (var i = 0; i < keys.length; i++) {
+            var t = DUCKY_PR.keyTime(c, keys[i].time);
+            prop.addKey(t);
+            prop.setValueAtKey(t, DUCKY_PR.dbToLevel(keys[i].db), true);
+        }
+        return { clip: c.name, db_before: before, keys: keys.length };
+    }
+    if (!DUCKY.has(p, "db")) throw new Error("db (or keys: [{time, db}]) required");
+    if (prop.isTimeVarying()) prop.setTimeVarying(false);
+    prop.setValue(DUCKY_PR.dbToLevel(p.db), true);
+    return { clip: c.name, db_before: before, db: DUCKY_PR.levelToDb(prop.getValue()) };
+};
+
+PR_CMD.set_track = function (p) {
+    var s = DUCKY_PR.sequence(p);
+    var t = DUCKY_PR.track(s, p);
+    if (DUCKY.has(p, "mute")) t.track.setMute(p.mute ? 1 : 0);
+    if (DUCKY.has(p, "name")) t.track.name = String(p.name);
+    var o = { track: t.kind + " " + t.index, name: t.track.name };
+    try { o.muted = t.track.isMuted(); } catch (eM) {}
+    return o;
 };
 
 PR_CMD.razor = function (p) {

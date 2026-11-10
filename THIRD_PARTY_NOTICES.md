@@ -9,7 +9,7 @@ The After Effects and Premiere Pro integrations are original code. They follow t
 documented by these MIT-licensed projects (no code copied):
 
 - [kumoproductions/mcp-aftereffects](https://github.com/kumoproductions/mcp-aftereffects) — Copyright (c) 2026 kumo.productions, Inc.: `AfterFX.exe -r` file IPC, undo groups with suppressed dialogs, safe ExtendScript error formatting and the JSON escaping trap.
-- [hetpatel-11/Adobe_Premiere_Pro_MCP](https://github.com/hetpatel-11/Adobe_Premiere_Pro_MCP) — MIT: the CEP polling bridge, QE razor timecodes, transition and frame-export calls, and matching QE clips by start ticks.
+- [hetpatel-11/Adobe_Premiere_Pro_MCP](https://github.com/hetpatel-11/Adobe_Premiere_Pro_MCP) — MIT: the CEP polling bridge, QE razor timecodes, transition and frame-export calls, matching QE clips by start ticks, selection-based link / unlink, roll edits through clip start / end / in point, and the measured Volume Level ↔ dB calibration (level = 10^((dB − 15) / 20)).
 
 Plugin backend, skills, and packaging are MIT, Copyright (c) 2026 Mindful Path Company, LLC.
 Not affiliated with Adobe Inc.

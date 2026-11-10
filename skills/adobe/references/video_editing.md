@@ -32,18 +32,21 @@ Music sets the grid: beat = `60 / bpm` s. Put cuts on beats with `razor` at beat
 
 - The cut is the default. Use `Cross Dissolve` for time passing, `Dip to Black` for a section
   end. 0.5–1 s; one style per section.
-- J cut: the next shot's audio starts before its picture. L cut: the picture changes while the
-  previous audio continues. Both need the audio unlinked from the video; there is no unlink
-  tool, so ask the person to unlink (right-click > Unlink) or skip them.
+- J cut: the next shot's audio starts before its picture (`split_edit(type="J", offset=0.5)`);
+  it pulls the viewer into the next scene. L cut: the picture changes while the previous audio
+  continues (`type="L"`); good for reactions. 0.3–1 s is typical. Use them on dialogue and
+  ambience cuts, not on beat-synced music cuts.
 - Never leave a 1-frame gap: read `get_sequence` and check each clip's `end` equals the
   next `start`.
 
 ## Audio
 
-- Dialogue around -12 dB peak, music bed well under it while someone speaks.
-- `set_effect_property(effect="Volume", property="Level", time=..., value=...)` keyframes duck
-  the music under a line. Premiere stores Level on its own scale, not in dB: read the clip's
-  value with `get_clip` first, set values relative to it, and have the person listen.
+- Dialogue clips at 0 dB clip gain (adjust ±3 dB to even voices out), music bed -12 to -18 dB
+  under speech, back to 0 between lines.
+- `set_volume(db=...)` works in real dB. Duck with keys 0.5 s before and after each line:
+  `keys=[{time: t0 - 0.5, db: 0}, {time: t0, db: -15}, {time: t1, db: -15}, {time: t1 + 0.5, db: 0}]`.
+- `set_track(mute=true)` to audition without a track (scratch VO, guide music).
+- Levels are numbers, not loudness: have the person listen to the final mix.
 - Audio transitions: `add_transition(track_type="audio", transition="Constant Power")` on
   music edits.
 

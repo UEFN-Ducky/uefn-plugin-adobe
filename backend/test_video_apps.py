@@ -193,6 +193,47 @@ if (host === "ae") {
     beginUndoGroup() { counters.undo++; }, endUndoGroup() { counters.undo--; },
     beginSuppressDialogs() { counters.suppress++; }, endSuppressDialogs() { counters.suppress--; }
   };
+} else if (host === "prt") {
+  // Two touching shots, video and audio linked, each with 2 s of source handle.
+  global.Time = class { constructor() { this._s = 0; } get seconds() { return this._s; } set seconds(v) { this._s = v; }
+                        get ticks() { return String(Math.round(this._s * 254016000000)); } };
+  const T = (s) => { const t = new Time(); t.seconds = s; return t; };
+  const coll = (a) => { a.numItems = a.length; return a; };
+  let nid = 0;
+  global.calls = [];
+  const level = { displayName: "Level", v: 0.17783, tv: false, keys: [],
+    getValue() { return this.v; }, setValue(v) { this.v = v; }, isTimeVarying() { return this.tv; },
+    setTimeVarying(b) { this.tv = b; }, addKey(t) { this.keys.push(t); }, setValueAtKey(t, v) { this.keys.push([t, v]); } };
+  const clip = (name, owner, start, end, inp, audio) => {
+    const c = { name, nodeId: String(++nid), start: T(start), end: T(end), inPoint: T(inp), outPoint: T(inp + end - start),
+      selected: 0, links: [], owner,
+      components: coll(audio ? [{ displayName: "Volume", properties: coll([level]) }] : [{ displayName: "Motion", properties: coll([]) }]),
+      setSelected(v) { this.selected = v; },
+      move(d) { if (typeof d !== "number") throw new Error("move takes seconds"); const len = this.end.seconds - this.start.seconds;
+                this.start = T(this.start.seconds + d); this.end = T(this.start.seconds + len); },
+      remove() { const i = this.owner.indexOf(this); if (i >= 0) { this.owner.splice(i, 1); this.owner.numItems = this.owner.length; } },
+      getLinkedItems() { return coll([this, ...this.links]); } };
+    owner.push(c); owner.numItems = owner.length;
+    return c;
+  };
+  const vClips = coll([]), aClips = coll([]);
+  const vA = clip("A", vClips, 0, 5, 0, false), vB = clip("B", vClips, 5, 10, 2, false);
+  const aA = clip("A", aClips, 0, 5, 0, true), aB = clip("B", aClips, 5, 10, 2, true);
+  vA.links = [aA]; aA.links = [vA]; vB.links = [aB]; aB.links = [vB];
+  const all = [vA, vB, aA, aB];
+  const tracks = (a) => { a.numTracks = a.length; return a; };
+  const seq = { sequenceID: "s1", name: "Cut", timebase: "8467200000",
+    videoTracks: tracks([{ name: "V1", clips: vClips }]),
+    audioTracks: tracks([{ name: "A1", clips: aClips, muted: 0, setMute(v) { this.muted = v; }, isMuted() { return !!this.muted; } }]),
+    unlinkSelection() { calls.push("unlink"); all.forEach((c) => { if (c.selected) c.links = []; }); },
+    linkSelection() { calls.push("link"); } };
+  global.app = { version: "25.0", project: { name: "Cut", path: "C:/Cut.prproj", activeSequence: seq,
+    rootItem: { children: { numItems: 0 } }, sequences: Object.assign([seq], { numSequences: 1 }) } };
+  global.state = () => ({
+    video: vClips.map((c) => [c.name, c.start.seconds, c.end.seconds, c.inPoint.seconds]),
+    audio: aClips.map((c) => [c.name, c.start.seconds, c.end.seconds, c.inPoint.seconds]),
+    level: level.v, level_keys: level.keys, links: all.map((c) => c.links.length), calls,
+    selected: all.filter((c) => c.selected).length, muted: seq.audioTracks[0].muted });
 } else {
   global.app = {
     version: "25.0",
@@ -201,7 +242,7 @@ if (host === "ae") {
   };
 }
 (0, eval)(fs.readFileSync(process.argv[2], "utf8").replace(/^\uFEFF/, ""));
-process.stdout.write(JSON.stringify(counters));
+process.stdout.write(JSON.stringify(host === "prt" ? state() : counters));
 """
 
 
@@ -245,6 +286,75 @@ def test_ae_job_eval_and_unicode(tmp_path: Path) -> None:
         {"code": "return {v: app.version, s: params.s, list: [1, 'a-b', null]};", "params": {"s": "Café \"q\" \n"}},
     )
     assert data == {"ok": True, "result": {"v": "25.1", "s": "Café \"q\" \n", "list": [1, "a-b", None]}, "error": None}
+
+
+def _pr_timeline(tmp_path: Path, command: str, params: dict) -> tuple[dict, dict]:
+    return _run_job(tmp_path, premiere, "DUCKY_PR.run", "prt", command, params)
+
+
+def test_premiere_set_volume_in_db(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "set_volume", {"track": 0, "clip_index": 1, "db": -6})
+    assert data["ok"] is True, data
+    assert abs(data["result"]["db_before"]) < 0.01  # Premiere's 0 dB is 0.17783
+    assert abs(data["result"]["db"] + 6) < 0.001
+    assert abs(st["level"] - 10 ** (-21 / 20)) < 1e-9
+
+
+def test_premiere_volume_keys_are_sequence_seconds(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "set_volume", {"track": 0, "clip_index": 1, "keys": [{"time": 6, "db": 0}, {"time": 7, "db": -18}]})
+    assert data["ok"] is True, data
+    # Clip B sits at 5 s with in point 2 s: sequence 6 s = source 3 s.
+    assert st["level_keys"][0] == 3 and st["level_keys"][2] == 4
+    assert abs(st["level_keys"][3][1] - 10 ** (-33 / 20)) < 1e-9
+
+
+def test_premiere_j_cut(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "split_edit", {"clip_index": 1, "type": "J", "offset": 0.5})
+    assert data["ok"] is True, data
+    assert st["video"] == [["A", 0, 5, 0], ["B", 5, 10, 2]]  # picture cut untouched
+    assert st["audio"] == [["A", 0, 4.5, 0], ["B", 4.5, 10, 1.5]]
+    assert st["calls"] == ["unlink"] and st["links"] == [0, 0, 0, 0] and st["selected"] == 0
+
+
+def test_premiere_l_cut(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "split_edit", {"clip_index": 1, "type": "L", "offset": 0.5})
+    assert data["ok"] is True, data
+    assert st["audio"] == [["A", 0, 5.5, 0], ["B", 5.5, 10, 2.5]]
+
+
+def test_premiere_split_edit_needs_source_handle(tmp_path: Path) -> None:
+    data, _ = _pr_timeline(tmp_path, "split_edit", {"clip_index": 1, "type": "J", "offset": 3})
+    assert data["ok"] is False and "source before its in point" in data["error"]
+
+
+def test_premiere_roll_edit(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "roll_edit", {"clip_index": 1, "delta": -1})
+    assert data["ok"] is True, data
+    assert st["video"] == [["A", 0, 4, 0], ["B", 4, 10, 1]]
+
+
+def test_premiere_unlink(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "unlink", {"clip_index": 0})
+    assert data["ok"] is True and data["result"]["linked_before"] == 1 and data["result"]["linked_after"] == 0
+    assert st["links"] == [0, 1, 0, 1]
+
+
+def test_premiere_ripple_delete_takes_linked_audio(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "remove_clip", {"clip_index": 0, "ripple": True})
+    assert data["ok"] is True, data
+    assert st["video"] == [["B", 0, 5, 2]] and st["audio"] == [["B", 0, 5, 2]]
+    assert data["result"]["linked_removed"] == 1
+
+
+def test_premiere_set_clip_slip_and_move(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "set_clip", {"clip_index": 1, "slip": -1, "move_by": 1})
+    assert data["ok"] is True, data
+    assert st["video"][1] == ["B", 6, 11, 1]
+
+
+def test_premiere_mute_track(tmp_path: Path) -> None:
+    data, st = _pr_timeline(tmp_path, "set_track", {"track": 0, "track_type": "audio", "mute": True})
+    assert data["ok"] is True and data["result"]["muted"] is True and st["muted"] == 1
 
 
 def test_premiere_job_ping_and_errors(tmp_path: Path) -> None:
