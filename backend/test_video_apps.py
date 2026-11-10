@@ -309,6 +309,25 @@ def test_nothing_the_store_scan_refuses() -> None:
     assert hits == []
 
 
+def test_no_long_base64_lines_the_store_scan_refuses() -> None:
+    """The Store scan refuses a line over 4000 chars that is >90% base64 (e.g. an SVG embedding a PNG)."""
+    b64 = set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
+    root = plugin_root()
+    hits = []
+    for p in root.rglob("*"):
+        if not p.is_file() or ".git" in p.parts or "deploy" in p.parts:
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue  # binaries (png, pyd) are not text-scanned
+        for line in text.splitlines():
+            if len(line) > 4000 and sum(c in b64 for c in line) * 10 > len(line) * 9:
+                hits.append(str(p.relative_to(root)))
+                break
+    assert hits == []
+
+
 def _pr_timeline(tmp_path: Path, command: str, params: dict) -> tuple[dict, dict]:
     return _run_job(tmp_path, premiere, "DUCKY_PR.run", "prt", command, params)
 
