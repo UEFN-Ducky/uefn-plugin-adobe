@@ -58,14 +58,94 @@ function _jsonEscapeString(s) {
 }
 
 function jsonParse(str) {
-  // ExtendScript (ES3) には JSON オブジェクトが存在しないため、
-  // eval ベースのパースが唯一の手段。
-  // パラメータは MCP Server が生成した JSON ファイル経由で渡されるため、
-  // ユーザー入力の直接埋め込みは発生せず、インジェクションリスクはない。
+  // ExtendScript (ES3) has no JSON object: a small strict JSON parser, never code execution.
   if (typeof str !== "string" || str.length === 0) return null;
   // BOM 除去
   if (str.charCodeAt(0) === 0xFEFF) str = str.substring(1);
-  return eval("(" + str + ")"); // eslint-disable-line no-eval
+  var i = 0;
+  function fail(msg) { throw new Error("jsonParse: " + msg + " at " + i); }
+  function ws() {
+    while (i < str.length) {
+      var c = str.charAt(i);
+      if (c === " " || c === "\t" || c === "\n" || c === "\r") i++; else break;
+    }
+  }
+  function lit(word, val) {
+    if (str.substr(i, word.length) !== word) fail("unexpected token");
+    i += word.length;
+    return val;
+  }
+  function string() {
+    var out = [];
+    i++; // opening quote
+    while (i < str.length) {
+      var c = str.charAt(i++);
+      if (c === '"') return out.join("");
+      if (c !== "\\") { out.push(c); continue; }
+      var e = str.charAt(i++);
+      if (e === "u") {
+        var hex = str.substr(i, 4);
+        if (!/^[0-9a-fA-F]{4}$/.test(hex)) fail("bad \\u escape");
+        out.push(String.fromCharCode(parseInt(hex, 16)));
+        i += 4;
+      } else if (e === "n") out.push("\n");
+      else if (e === "r") out.push("\r");
+      else if (e === "t") out.push("\t");
+      else if (e === "b") out.push("\b");
+      else if (e === "f") out.push("\f");
+      else if (e === '"' || e === "\\" || e === "/") out.push(e);
+      else fail("bad escape");
+    }
+    fail("unterminated string");
+  }
+  function number() {
+    var m = /^-?(0|[1-9]\d*)(\.\d+)?([eE][+-]?\d+)?/.exec(str.substring(i));
+    if (!m) fail("bad number");
+    i += m[0].length;
+    return parseFloat(m[0]);
+  }
+  function value() {
+    ws();
+    var c = str.charAt(i);
+    if (c === "{") {
+      var obj = {};
+      i++; ws();
+      if (str.charAt(i) === "}") { i++; return obj; }
+      while (true) {
+        ws();
+        if (str.charAt(i) !== '"') fail("expected key");
+        var key = string();
+        ws();
+        if (str.charAt(i++) !== ":") fail("expected ':'");
+        obj[key] = value();
+        ws();
+        var sep = str.charAt(i++);
+        if (sep === "}") return obj;
+        if (sep !== ",") fail("expected ',' or '}'");
+      }
+    }
+    if (c === "[") {
+      var arr = [];
+      i++; ws();
+      if (str.charAt(i) === "]") { i++; return arr; }
+      while (true) {
+        arr.push(value());
+        ws();
+        var s2 = str.charAt(i++);
+        if (s2 === "]") return arr;
+        if (s2 !== ",") fail("expected ',' or ']'");
+      }
+    }
+    if (c === '"') return string();
+    if (c === "t") return lit("true", true);
+    if (c === "f") return lit("false", false);
+    if (c === "n") return lit("null", null);
+    return number();
+  }
+  var result = value();
+  ws();
+  if (i < str.length) fail("trailing characters");
+  return result;
 }
 
 // --- ファイル I/O ---

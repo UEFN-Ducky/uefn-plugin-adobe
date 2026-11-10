@@ -300,13 +300,36 @@ def test_premiere_raw_code(tmp_path: Path) -> None:
 
 def test_nothing_the_store_scan_refuses() -> None:
     """The Store's upload scan refuses a plugin whose files compile code from a string."""
-    banned = "new " + "function"  # spelled apart so this file never matches itself
+    banned = ("new " + "function", "ev" + "al(")  # spelled apart so this file never matches itself
     root = plugin_root()
     hits = [str(p.relative_to(root)) for p in root.rglob("*")
             if p.is_file() and ".git" not in p.parts and "deploy" not in p.parts
             and p.suffix in {".py", ".js", ".jsx", ".json", ".md", ".html"}
-            and banned in p.read_text(encoding="utf-8", errors="ignore").lower()]
+            and any(b in p.read_text(encoding="utf-8", errors="ignore").lower() for b in banned)]
     assert hits == []
+
+
+def test_illustrator_json_parse_without_code_execution(tmp_path: Path) -> None:
+    node = _node()
+    if not node:
+        pytest.skip("node is not on PATH")
+    sample = {"s": "Café \"q\" \n\\/", "n": [-1.5e2, 0, 3], "b": [True, False, None], "o": {"k": {}}, "e": []}
+    probe = tmp_path / "probe.js"
+    probe.write_text(
+        (plugin_root() / "assets" / "illustrator" / "common.jsx").read_text(encoding="utf-8")
+        + "\nvar fs = require('fs');\n"
+        "var v = jsonParse(fs.readFileSync(process.argv[2], 'utf8'));\n"
+        "var bad = 0; ['{\"a\":1}x', '{a:1}', '(1)', '[1,]'].forEach(function (s) {\n"
+        "  try { jsonParse(s); } catch (e) { bad++; } });\n"
+        "process.stdout.write(JSON.stringify({v: v, bad: bad}));\n",
+        encoding="utf-8",
+    )
+    src = tmp_path / "params.json"
+    src.write_text("﻿" + json.dumps(sample, indent=2), encoding="utf-8")
+    proc = subprocess.run([node, str(probe), str(src)], capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr
+    out = json.loads(proc.stdout)
+    assert out == {"v": sample, "bad": 4}
 
 
 def test_no_long_base64_lines_the_store_scan_refuses() -> None:
