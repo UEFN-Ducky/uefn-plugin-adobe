@@ -140,6 +140,9 @@ def build_compiled_zip(*, out: Path | None = None, release: bool = False) -> Pat
     ducky_app = repo / "ducky_app"
     env = dict(os.environ)
     env["PYTHONPATH"] = str(ducky_app) + os.pathsep + env.get("PYTHONPATH", "")
+    # One C compiler per core ran out of memory in a capped agent terminal (LLVM OOM);
+    # 2 jobs + Nuitka low-memory mode fits. Set DUCKY_NUITKA_JOBS to override.
+    env.setdefault("DUCKY_NUITKA_JOBS", "2")
     cmd = [_ducky_python(repo), "-m", "backend.uefn_plugins.compile", str(ROOT), str(dest)]
     if release:
         cmd.append("--release")
