@@ -1,6 +1,6 @@
 # Adobe
 
-Open-source [UEFN-Ducky](https://github.com/UEFN-Ducky/UEFN-Ducky) Store plugin. Control **Illustrator** and **Photoshop** from the shared `uefn-ducky` MCP (`adobe_*`, `illustrator_*`, `photoshop_*`). Windows COM launches or attaches to the apps — no Node, no token, no extra IDE MCP row.
+Open-source [UEFN-Ducky](https://github.com/UEFN-Ducky/UEFN-Ducky) Store plugin. Control **Illustrator**, **Photoshop**, **After Effects** and **Premiere Pro** from the shared `uefn-ducky` MCP (`adobe_*`, `illustrator_*`, `photoshop_*`, `aftereffects_*`, `premiere_*`). Windows COM launches or attaches to Illustrator and Photoshop — no Node, no token, no extra IDE MCP row.
 
 Repo: [UEFN-Ducky/uefn-plugin-adobe](https://github.com/UEFN-Ducky/uefn-plugin-adobe). MIT.
 
@@ -24,9 +24,16 @@ Before a release, install the readable and the compiled zip into a throwaway Duc
 
 **VectorCraft** ([storytold/vectorcraft](https://github.com/storytold/vectorcraft)), the Illustrator counterpart, works the same way (`vectorcraft_*`). The first call launches a controllable copy (`--control 47879`, the home folder as read/write root); its port takes no token. Overrides: `VECTORCRAFT_EXE`, `VECTORCRAFT_CONTROL_PORT`, `VECTORCRAFT_ROOT`.
 
+**After Effects** (`aftereffects_*`, 29 commands + status + raw JSX): each call writes a self-contained job script and runs `AfterFX.exe -r <job>` against the running instance, inside one undo group with dialogs suppressed; the job writes its result JSON under `%LOCALAPPDATA%/UEFN-Ducky/adobe/aftereffects/`. Needs After Effects' "Allow Scripts to Write Files and Access Network" pref. Override: `AE_EXE`.
+
+**Premiere Pro** (`premiere_*`, 25 commands + status, bridge install/remove, presets, raw JSX): Premiere runs scripts only inside a panel, so `assets/premiere/cep` ships the Ducky Bridge CEP panel. `premiere_install_bridge` copies it to `%APPDATA%/Adobe/CEP/extensions/com.uefnducky.premiere.bridge` and sets `PlayerDebugMode` (HKCU, CSXS.9–12, restored by `premiere_remove_bridge`). The panel polls `%LOCALAPPDATA%/UEFN-Ducky/adobe/premiere/` for job scripts and writes a heartbeat. Override: `PREMIERE_EXE`.
+
+Shared ExtendScript core: `assets/common/ducky.jsx`. Tests (`py -3 -m pytest backend`) run real built jobs in Node against stub hosts when `node` is on PATH.
+
 Automations + Pipelines tiles: `adobe.status`, `illustrator.read` / `open` /
-`save` / `export`, `photoshop.read` / `export`, `adobe.jsx`. Drop-in templates
-export the open file or spawn a ducky to draw then export.
+`save` / `export`, `photoshop.read` / `export`, `aftereffects.read` / `render_frame`,
+`premiere.read` / `export_frame`, `adobe.jsx`. Drop-in templates export the open file,
+spawn a ducky to draw then export, animate in After Effects, or edit in Premiere.
 
 ## License
 

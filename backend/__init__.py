@@ -1,5 +1,6 @@
-"""Adobe — Store desktop plugin. Ducky is the MCP server. COM talks to the Adobe apps,
-PhotoCraft's and VectorCraft's loopback control servers to PhotoCraft and VectorCraft."""
+"""Adobe — Store desktop plugin. Ducky is the MCP server. COM talks to Illustrator and
+Photoshop, ``AfterFX.exe -r`` to After Effects, the Ducky Bridge CEP panel to Premiere Pro,
+and PhotoCraft's and VectorCraft's loopback control servers to PhotoCraft and VectorCraft."""
 
 from __future__ import annotations
 
@@ -20,6 +21,26 @@ def _connection_row() -> dict[str, Any]:
     return {"online": online, "detail": detail}
 
 
+def execute_jsx(app: str, code: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+    target = (app or "").strip().lower()
+    try:
+        if target.startswith("ill"):
+            return execute_illustrator(code, params or {}, activate=True)
+        if target.startswith("pho") or target == "ps":
+            return execute_photoshop(code)
+        if target.startswith("after") or target == "ae":
+            from . import aftereffects
+
+            return aftereffects.run("__eval", {"code": code, "params": params or {}}, label="script")
+        if target.startswith("prem") or target == "pr":
+            from . import premiere
+
+            return premiere.run("__eval", {"code": code, "params": params or {}})
+    except Exception as exc:
+        return {"ok": False, "error": str(exc)}
+    return {"ok": False, "error": "app must be illustrator, photoshop, aftereffects or premiere"}
+
+
 def register(api: Any) -> None:
     # Never launch Adobe or COM-ping during register — host has a 20s watchdog.
     connect = getattr(api, "connection", None)
@@ -31,12 +52,12 @@ def register(api: Any) -> None:
 
     @api.tool(name="adobe_status", intent=INTENT, listener=False)
     def adobe_status(app: str = "") -> str:
-        """Report Illustrator / Photoshop readiness. Only the named app is launched; omit to never launch."""
+        """Report Illustrator / Photoshop / After Effects / Premiere Pro readiness. Only the named app is launched; omit to never launch."""
         return json.dumps(build_status(app=app), indent=2, default=str)
 
     @api.tool(name="adobe_list_tools", intent=INTENT, listener=False)
     def adobe_list_tools() -> str:
-        """List Illustrator and Photoshop tools this plugin registers."""
+        """List the Illustrator, Photoshop, After Effects, Premiere Pro, PhotoCraft and VectorCraft tools this plugin registers."""
         from . import catalogs
 
         return json.dumps(
@@ -52,18 +73,8 @@ def register(api: Any) -> None:
 
     @api.tool(name="adobe_execute_jsx", intent=INTENT, listener=False)
     def adobe_execute_jsx(app: str, code: str, params: dict[str, Any] | None = None) -> str:
-        """Run raw ExtendScript in illustrator or photoshop."""
-        target = (app or "").strip().lower()
-        try:
-            if target.startswith("ill"):
-                result = execute_illustrator(code, params or {}, activate=True)
-            elif target.startswith("pho") or target == "ps":
-                result = execute_photoshop(code)
-            else:
-                return json.dumps({"ok": False, "error": "app must be illustrator or photoshop"})
-        except Exception as exc:
-            return json.dumps({"ok": False, "error": str(exc)}, indent=2)
-        return json.dumps(result, indent=2, default=str)
+        """Run raw ExtendScript in illustrator, photoshop, aftereffects or premiere."""
+        return json.dumps(execute_jsx(app, code, params), indent=2, default=str)
 
     try:
         register_illustrator_tools(api)
@@ -73,6 +84,18 @@ def register(api: Any) -> None:
         register_photoshop_tools(api)
     except Exception as exc:
         api.log(f"Adobe Photoshop tools skipped: {exc}")
+    try:
+        from .aftereffects import register_aftereffects_tools
+
+        register_aftereffects_tools(api)
+    except Exception as exc:
+        api.log(f"Adobe After Effects tools skipped: {exc}")
+    try:
+        from .premiere import register_premiere_tools
+
+        register_premiere_tools(api)
+    except Exception as exc:
+        api.log(f"Adobe Premiere Pro tools skipped: {exc}")
     try:
         from .photocraft import register_photocraft_tools
 

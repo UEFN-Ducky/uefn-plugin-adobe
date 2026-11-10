@@ -13,6 +13,10 @@ NODES = (
     "illustrator.export",
     "photoshop.read",
     "photoshop.export",
+    "aftereffects.read",
+    "aftereffects.render_frame",
+    "premiere.read",
+    "premiere.export_frame",
     "adobe.jsx",
 )
 
@@ -27,6 +31,10 @@ def register_nodes(api: Any) -> None:
     api.register_automation_node("illustrator.export", handle_illustrator_export)
     api.register_automation_node("photoshop.read", handle_photoshop_read)
     api.register_automation_node("photoshop.export", handle_photoshop_export)
+    api.register_automation_node("aftereffects.read", handle_aftereffects_read)
+    api.register_automation_node("aftereffects.render_frame", handle_aftereffects_render_frame)
+    api.register_automation_node("premiere.read", handle_premiere_read)
+    api.register_automation_node("premiere.export_frame", handle_premiere_export_frame)
     api.register_automation_node("adobe.jsx", handle_jsx)
 
 
@@ -129,19 +137,64 @@ def handle_photoshop_export(ctx: dict[str, Any]) -> dict[str, Any]:
     return _wrap(run_photoshop_tool("photoshop_export", {"path": out, "format": fmt}))
 
 
+def _frame_path(ctx: dict[str, Any], cfg: dict[str, Any], payload: dict[str, Any], stem: str) -> str:
+    out = _pick(cfg, payload, "output_path", "path")
+    if out:
+        return out
+    dest = str(ctx.get("artifact_dir") or "").strip()
+    if dest:
+        return str(Path(dest) / f"{stem}.png")
+    from .jobs import job_root
+
+    return str(job_root("frames") / f"{stem}.png")
+
+
+def handle_aftereffects_read(_ctx: dict[str, Any]) -> dict[str, Any]:
+    from . import aftereffects
+
+    return _wrap(aftereffects.run("project_info", {}))
+
+
+def handle_aftereffects_render_frame(ctx: dict[str, Any]) -> dict[str, Any]:
+    from . import aftereffects
+
+    cfg, payload = _pair(ctx)
+    params: dict[str, Any] = {"path": _frame_path(ctx, cfg, payload, "aftereffects")}
+    comp = _pick(cfg, payload, "comp")
+    if comp:
+        params["comp"] = comp
+    time_s = _pick(cfg, payload, "time")
+    if time_s:
+        params["time"] = float(time_s)
+    return _wrap(aftereffects.run("render_frame", params))
+
+
+def handle_premiere_read(_ctx: dict[str, Any]) -> dict[str, Any]:
+    from . import premiere
+
+    return _wrap(premiere.run("project_info", {}))
+
+
+def handle_premiere_export_frame(ctx: dict[str, Any]) -> dict[str, Any]:
+    from . import premiere
+
+    cfg, payload = _pair(ctx)
+    params: dict[str, Any] = {"path": _frame_path(ctx, cfg, payload, "premiere")}
+    seq = _pick(cfg, payload, "sequence")
+    if seq:
+        params["sequence"] = seq
+    time_s = _pick(cfg, payload, "time")
+    if time_s:
+        params["time"] = float(time_s)
+    return _wrap(premiere.run("export_frame", params))
+
+
 def handle_jsx(ctx: dict[str, Any]) -> dict[str, Any]:
-    from .com_runner import execute_illustrator, execute_photoshop
+    from . import execute_jsx
 
     cfg, payload = _pair(ctx)
     app = (_pick(cfg, payload, "app") or "illustrator").lower()
     code = _pick(cfg, payload, "code", "jsx")
     if not code:
         return {"ok": False, "error": "code required"}
-    try:
-        if app.startswith("ill"):
-            return _wrap(execute_illustrator(code, {}, activate=True))
-        if app.startswith("pho") or app == "ps":
-            return _wrap(execute_photoshop(code))
-    except Exception as exc:
-        return {"ok": False, "error": str(exc)}
-    return {"ok": False, "error": "app must be illustrator or photoshop"}
+    return _wrap(execute_jsx(app, code, {}))

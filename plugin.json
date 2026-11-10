@@ -1,9 +1,9 @@
 {
   "id": "adobe",
   "kind": "plugin",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "label": "Adobe",
-  "description": "Control Illustrator, Photoshop, PhotoCraft and VectorCraft from Ducky. COM/ExtendScript and the Craft apps' local control servers are automatic — no Node, no token, no extra MCP row.",
+  "description": "Control Illustrator, Photoshop, After Effects, Premiere Pro, PhotoCraft and VectorCraft from Ducky. COM, AfterFX -r scripts, a bundled Premiere bridge panel and the Craft apps' local control servers — no Node, no token, no extra MCP row.",
   "min_app_version": "1.2.357",
   "default_enabled": false,
   "data_sharing": false,
@@ -11,7 +11,7 @@
   "contributes": {
     "agent.tools": {
       "category": "adobe",
-      "intent_pattern": "\\b(adobe|illustrator|photoshop|artboard|extendscript|photocraft|photo ?craft|vectorcraft|vector ?craft)\\b",
+      "intent_pattern": "\\b(adobe|illustrator|photoshop|artboard|extendscript|photocraft|photo ?craft|vectorcraft|vector ?craft|after ?effects|aftereffects|\\.aep|premiere|prproj|motion graphics|video edit(ing)?)\\b",
       "plan_tools": [
         "adobe_status",
         "adobe_list_tools",
@@ -19,6 +19,12 @@
         "illustrator_get_artboards",
         "illustrator_get_document_structure",
         "photoshop_get_state",
+        "aftereffects_status",
+        "aftereffects_project_info",
+        "aftereffects_get_comp",
+        "premiere_status",
+        "premiere_project_info",
+        "premiere_get_sequence",
         "photocraft_status",
         "photocraft_inspect",
         "vectorcraft_status",
@@ -90,12 +96,48 @@
           ]
         },
         {
+          "id": "aftereffects.read",
+          "label": "Read After Effects project",
+          "group": "Adobe",
+          "description": "Read the open After Effects project: comps, sizes, durations, active item.",
+          "config_fields": []
+        },
+        {
+          "id": "aftereffects.render_frame",
+          "label": "Render After Effects frame",
+          "group": "Adobe",
+          "description": "Render one comp frame to a PNG.",
+          "config_fields": [
+            { "id": "comp", "label": "Comp (optional: active comp)", "type": "string" },
+            { "id": "time", "label": "Time in seconds (optional)", "type": "string" },
+            { "id": "output_path", "label": "Output .png (optional)", "type": "string" }
+          ]
+        },
+        {
+          "id": "premiere.read",
+          "label": "Read Premiere project",
+          "group": "Adobe",
+          "description": "Read the open Premiere Pro project: sequences, active sequence.",
+          "config_fields": []
+        },
+        {
+          "id": "premiere.export_frame",
+          "label": "Export Premiere frame",
+          "group": "Adobe",
+          "description": "Export one sequence frame to a PNG.",
+          "config_fields": [
+            { "id": "sequence", "label": "Sequence (optional: active)", "type": "string" },
+            { "id": "time", "label": "Time in seconds (optional: playhead)", "type": "string" },
+            { "id": "output_path", "label": "Output .png (optional)", "type": "string" }
+          ]
+        },
+        {
           "id": "adobe.jsx",
           "label": "Run ExtendScript",
           "group": "Adobe",
-          "description": "Run raw JSX in Illustrator or Photoshop.",
+          "description": "Run raw JSX in Illustrator, Photoshop, After Effects or Premiere Pro.",
           "config_fields": [
-            { "id": "app", "label": "App (illustrator/photoshop)", "type": "string" },
+            { "id": "app", "label": "App (illustrator/photoshop/aftereffects/premiere)", "type": "string" },
             { "id": "code", "label": "ExtendScript", "type": "textarea" }
           ]
         }
@@ -228,6 +270,68 @@
                 "config": { "message": "Art exported." },
                 "label": "Finish"
               }
+            ],
+            "edges": [
+              { "source": "s", "target": "a", "kind": "main" },
+              { "source": "a", "target": "e", "kind": "main" },
+              { "source": "e", "target": "f", "kind": "main" }
+            ]
+          }
+        },
+        {
+          "id": "adobe-aftereffects-animate",
+          "label": "Ducky animates in After Effects",
+          "icon": "🎞️",
+          "description": "A ducky builds or edits the animation in the open After Effects project, then renders a frame to check it.",
+          "requires_plugins": ["adobe"],
+          "systems": ["pipeline"],
+          "graph": {
+            "nodes": [
+              { "id": "s", "type": "start.chat", "x": 40, "y": 80, "config": {}, "label": "Chat" },
+              {
+                "id": "a",
+                "type": "pipeline.agent",
+                "x": 260,
+                "y": 80,
+                "config": {
+                  "title": "After Effects",
+                  "prompt": "Adobe is in-scope. Call aftereffects_project_info, build the requested animation with aftereffects_*, check it with aftereffects_render_frame, then stop."
+                },
+                "label": "Agent"
+              },
+              { "id": "r", "type": "aftereffects.render_frame", "x": 500, "y": 80, "config": {}, "label": "Render After Effects frame" },
+              { "id": "f", "type": "pipeline.finish", "x": 740, "y": 80, "config": { "message": "Animation done." }, "label": "Finish" }
+            ],
+            "edges": [
+              { "source": "s", "target": "a", "kind": "main" },
+              { "source": "a", "target": "r", "kind": "main" },
+              { "source": "r", "target": "f", "kind": "main" }
+            ]
+          }
+        },
+        {
+          "id": "adobe-premiere-edit",
+          "label": "Ducky edits in Premiere",
+          "icon": "🎬",
+          "description": "A ducky cuts the open Premiere Pro sequence, then exports a frame to check the edit.",
+          "requires_plugins": ["adobe"],
+          "systems": ["pipeline"],
+          "graph": {
+            "nodes": [
+              { "id": "s", "type": "start.chat", "x": 40, "y": 80, "config": {}, "label": "Chat" },
+              {
+                "id": "a",
+                "type": "pipeline.agent",
+                "x": 260,
+                "y": 80,
+                "config": {
+                  "title": "Premiere Pro",
+                  "prompt": "Adobe is in-scope. Call premiere_status, then premiere_get_sequence, make the requested edit with premiere_*, read the sequence back, then stop."
+                },
+                "label": "Agent"
+              },
+              { "id": "e", "type": "premiere.export_frame", "x": 500, "y": 80, "config": {}, "label": "Export Premiere frame" },
+              { "id": "f", "type": "pipeline.finish", "x": 740, "y": 80, "config": { "message": "Edit done." }, "label": "Finish" }
             ],
             "edges": [
               { "source": "s", "target": "a", "kind": "main" },

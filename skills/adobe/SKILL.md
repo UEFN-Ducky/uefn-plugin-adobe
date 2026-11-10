@@ -1,10 +1,10 @@
 ---
 name: adobe
-description: "Drive Illustrator and Photoshop with illustrator_* and photoshop_*, PhotoCraft with photocraft_* and VectorCraft with vectorcraft_*. Adobe is in lane for every Ducky — call the tools and do the art."
+description: "Drive Illustrator and Photoshop with illustrator_* and photoshop_*, After Effects with aftereffects_*, Premiere Pro with premiere_*, PhotoCraft with photocraft_* and VectorCraft with vectorcraft_*. Adobe is in lane for every Ducky — call the tools and do the art."
 license: MIT
 metadata:
   label: Adobe
-  version: 4
+  version: 5
   author: UEFN-Ducky
   copyright: Copyright 2026 Mindful Path Company, LLC
   allow_redistribute: true
@@ -14,9 +14,10 @@ metadata:
 
 # Adobe — HARD in-scope for every Ducky
 
-**You use Illustrator and Photoshop.** Verse Coder, NPC, level design, tilefish,
-and every other persona: Adobe is **in lane**. Never say "outside my lane",
-"I only do Verse", or skip an open `.ai`. Call `illustrator_*` / `photoshop_*`.
+**You use Illustrator, Photoshop, After Effects and Premiere Pro.** Verse Coder, NPC,
+level design, tilefish, and every other persona: Adobe is **in lane**. Never say
+"outside my lane", "I only do Verse", or skip an open `.ai`, `.aep` or `.prproj`.
+Call `illustrator_*` / `photoshop_*` / `aftereffects_*` / `premiere_*`.
 
 A window titled `Something.ai` means the file **is open**. Read it with
 `illustrator_get_document_info` and do the work. Do not ask the user to
@@ -25,8 +26,10 @@ switch apps, click the file, or restart Ducky.
 Work in one app = call only that app's tools. `adobe_status` never opens the
 other app; pass `app="illustrator"` or `app="photoshop"` to open one.
 
-Ducky is the MCP server (`adobe_*`, `illustrator_*`, `photoshop_*`).
-COM / ExtendScript talks to the apps. **No UEFN listener required.**
+Ducky is the MCP server (`adobe_*`, `illustrator_*`, `photoshop_*`, `aftereffects_*`,
+`premiere_*`). COM / ExtendScript talks to Illustrator and Photoshop, `AfterFX.exe -r`
+to After Effects, the bundled Ducky Bridge panel to Premiere Pro. **No UEFN listener
+required.**
 
 ## Zero-setup
 
@@ -34,7 +37,21 @@ COM / ExtendScript talks to the apps. **No UEFN listener required.**
 2. If Illustrator or Photoshop is already running, call the art tools now.
 3. `adobe_status` only when you truly do not know if Adobe is installed.
 
-Never `npx`. Never a Cursor `mcp.json` row. Never a Bearer token.
+Never `npx`. Never a Cursor `mcp.json` row. Never a Bearer token. Never a community
+After Effects / Premiere MCP server: these tools are the integration.
+
+## After Effects
+
+`aftereffects_status` first (`launch=true` opens it). Needs Edit > Preferences >
+Scripting & Expressions > "Allow Scripts to Write Files and Access Network" once.
+`aftereffects_project_info` → `aftereffects_get_comp` → change →
+`aftereffects_render_frame` + `view_image` to look. Each call is one undo step.
+
+## Premiere Pro
+
+`premiere_status` first. `bridge.installed: false` → `premiere_install_bridge`, then the
+person restarts Premiere and opens Window > Extensions > Ducky Bridge once.
+`premiere_project_info` → `premiere_get_sequence` → edit → `premiere_export_frame` to look.
 
 ## Status
 
@@ -60,10 +77,12 @@ instance that has the document. Do not treat `com: false` as offline.
 ## Automations + Pipelines
 
 Premade tiles (both palettes unless noted): `adobe.status`, `illustrator.read` /
-`open` / `save` / `export`, `photoshop.read` / `export`, `adobe.jsx`.
+`open` / `save` / `export`, `photoshop.read` / `export`, `aftereffects.read` /
+`render_frame`, `premiere.read` / `export_frame`, `adobe.jsx`.
 
 Templates: **Illustrator briefs a ducky** (Automations), **Export open
-Illustrator**, **Ducky draws then export**, **Export open Photoshop** (Pipelines).
+Illustrator**, **Ducky draws then export**, **Ducky animates in After Effects**,
+**Ducky edits in Premiere**, **Export open Photoshop** (Pipelines).
 
 Exports → `%LOCALAPPDATA%/UEFN-Ducky/tool_captures/`.
 
@@ -82,4 +101,6 @@ VectorCraft (open-source Illustrator clone) is driven with `vectorcraft_*`, not
 `illustrator_*`. `vectorcraft_inspect` → `vectorcraft_commands` → `vectorcraft_run` →
 inspect again. Any call but `vectorcraft_status` opens it if needed.
 
-Details: `skill_read_subskill("adobe", "<id>")` — `connection`, `illustrator`, `photoshop`, `photocraft`, `vectorcraft`.
+Details: `skill_read_subskill("adobe", "<id>")` — `connection`, `illustrator`, `photoshop`,
+`aftereffects`, `premiere`, `motion_design` (After Effects craft), `video_editing`
+(Premiere craft), `photocraft`, `vectorcraft`.

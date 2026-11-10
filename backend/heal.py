@@ -334,9 +334,11 @@ def cheap_online() -> tuple[bool, str]:
 
     ai = _win_exe_running("Illustrator.exe")
     ps = _win_exe_running("Photoshop.exe")
+    ae = _win_exe_running("AfterFX.exe")
+    pr = _win_exe_running("Adobe Premiere Pro.exe")
     pc = photocraft.reachable()
     vc = vectorcraft.reachable()
-    if ai or ps or pc or vc:
+    if ai or ps or ae or pr or pc or vc:
         bits = []
         if ai:
             docs = [document_name_from_title(t) for t in illustrator_window_titles()]
@@ -344,6 +346,12 @@ def cheap_online() -> tuple[bool, str]:
             bits.append("Illustrator (" + docs[0] + ")" if docs else "Illustrator")
         if ps:
             bits.append("Photoshop")
+        if ae:
+            bits.append("After Effects")
+        if pr:
+            from . import premiere
+
+            bits.append("Premiere Pro" if premiere.heartbeat() else "Premiere Pro (bridge panel closed)")
         if pc:
             bits.append("PhotoCraft")
         if vc:
@@ -353,6 +361,8 @@ def cheap_online() -> tuple[bool, str]:
     crafts = [name for name, mod in (("PhotoCraft", photocraft), ("VectorCraft", vectorcraft)) if mod.find_exe()]
     if crafts:
         return True, "Ready · " + " + ".join(crafts) + " installed (opens on first use)"
-    if illustrator_exes() or photoshop_exes():
-        return False, "Offline · Illustrator / Photoshop installed, not running"
-    return False, "Offline · Illustrator / Photoshop / PhotoCraft / VectorCraft not installed"
+    from . import aftereffects, premiere
+
+    if illustrator_exes() or photoshop_exes() or aftereffects.find_exe() or premiere.find_exe():
+        return False, "Offline · Adobe apps installed, not running"
+    return False, "Offline · Illustrator / Photoshop / After Effects / Premiere Pro / PhotoCraft / VectorCraft not installed"

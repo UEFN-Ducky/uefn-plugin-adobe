@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 PLUGIN_ID = "adobe"
-INTENT = r"\b(adobe|illustrator|photoshop)\b"
+INTENT = r"\b(adobe|illustrator|photoshop|after ?effects|premiere)\b"
 
 
 def plugin_root() -> Path:

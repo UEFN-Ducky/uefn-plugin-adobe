@@ -48,6 +48,29 @@ def list_entries() -> list[dict[str, Any]]:
                 "kind": "recipe" if row.get("recipe") else "atomic",
             }
         )
+    from . import aftereffects, premiere
+
+    for app, mod in (("aftereffects", aftereffects), ("premiere", premiere)):
+        for row in mod.catalog():
+            rows.append(
+                {
+                    "name": f"{app}_{row['name']}",
+                    "app": app,
+                    "description": row.get("description") or row["name"],
+                    "kind": row.get("kind") or "",
+                }
+            )
+    rows.extend(
+        [
+            {"name": "aftereffects_status", "app": "aftereffects", "description": "Install / running / scripting-ready state; launch=true opens it"},
+            {"name": "aftereffects_execute_jsx", "app": "aftereffects", "description": "Raw ExtendScript escape hatch (one undo step)"},
+            {"name": "premiere_status", "app": "premiere", "description": "Install / running / Ducky Bridge panel state; launch=true opens it"},
+            {"name": "premiere_install_bridge", "app": "premiere", "description": "Install or update the Ducky Bridge CEP panel"},
+            {"name": "premiere_remove_bridge", "app": "premiere", "description": "Remove the panel and restore PlayerDebugMode"},
+            {"name": "premiere_list_presets", "app": "premiere", "description": "Find .epr export presets"},
+            {"name": "premiere_execute_jsx", "app": "premiere", "description": "Raw ExtendScript escape hatch"},
+        ]
+    )
     rows.extend(
         [
             {"name": "adobe_status", "app": "adobe", "description": "Heal + connection state"},
