@@ -86,7 +86,7 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
         script = jobs.build_code_job(LIBS, "DUCKY_AE.runFn", code, params or {}, result, label or "script")
     else:
         script = jobs.build_job(LIBS, "DUCKY_AE.run", command, params or {}, result, label)
-    job.write_bytes("﻿".encode("utf-8") + script.encode("utf-8"))
+    job.write_bytes(script.encode("utf-8-sig"))  # UTF-8 with BOM, so AE reads non-ASCII right
     try:
         # The forwarder hands the script to the running instance and exits.
         subprocess.Popen([str(exe), "-r", str(job)], close_fds=True, **_win_no_window_kwargs())

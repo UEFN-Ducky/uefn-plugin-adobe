@@ -59,7 +59,8 @@
     var claimed = path.join(base, "run-" + id + ".jsx");
     try { fs.renameSync(path.join(base, name), claimed); } catch (e) { return; }
     var code;
-    try { code = fs.readFileSync(claimed, "utf8").replace(/^﻿/, ""); } catch (e2) { return; }
+    try { code = fs.readFileSync(claimed, "utf8"); } catch (e2) { return; }
+    if (code.charCodeAt(0) === 0xFEFF) code = code.slice(1); // drop a BOM
     busy = true;
     show("status", "Running a Ducky job...");
     evalScript(code, function (ret) {

@@ -309,6 +309,30 @@ def test_nothing_the_store_scan_refuses() -> None:
     assert hits == []
 
 
+def test_no_hidden_characters_the_store_scan_refuses() -> None:
+    """The Store scan hard-blocks control chars, bidi overrides, zero-width chars and a BOM in shipped text."""
+    import unicodedata
+
+    def hidden(c: str) -> bool:
+        u = ord(c)
+        if c in "\n\t\r":
+            return False
+        return (unicodedata.category(c) == "Cc" or 0x202A <= u <= 0x202E or 0x2066 <= u <= 0x2069
+                or u in (0x200B, 0x200C, 0x200D, 0xFEFF))
+
+    root = plugin_root()
+    hits = []
+    for p in root.rglob("*"):
+        if not p.is_file() or ".git" in p.parts or "deploy" in p.parts:
+            continue
+        try:
+            text = p.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        hits += [f"{p.relative_to(root)}: U+{ord(c):04X}" for c in set(text) if hidden(c)]
+    assert hits == []
+
+
 def test_illustrator_json_parse_without_code_execution(tmp_path: Path) -> None:
     node = _node()
     if not node:
@@ -325,7 +349,7 @@ def test_illustrator_json_parse_without_code_execution(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     src = tmp_path / "params.json"
-    src.write_text("﻿" + json.dumps(sample, indent=2), encoding="utf-8")
+    src.write_text(json.dumps(sample, indent=2), encoding="utf-8-sig")  # with a BOM, as some writers add
     proc = subprocess.run([node, str(probe), str(src)], capture_output=True, text=True, timeout=30)
     assert proc.returncode == 0, proc.stderr
     out = json.loads(proc.stdout)
