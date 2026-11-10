@@ -11,13 +11,14 @@ Tools are named `aftereffects_*`. Every tool takes one `params` object (keys in 
 description). Each call is one undo step in After Effects (Edit > Undo, or
 `aftereffects_undo`).
 
-## Setup (once)
+## Setup: none
 
-1. After Effects open with a project (an empty one is fine).
-2. **Edit > Preferences > Scripting & Expressions > "Allow Scripts to Write Files and
-   Access Network"** on. Without it every call times out; the answer says so.
-3. `aftereffects_status` → `ready: true`. Closed? `aftereffects_status(launch=true)` opens it
-   and waits. Not under Program Files\Adobe? The person sets `AE_EXE`.
+`aftereffects_status(launch=true)` opens After Effects if needed and waits until it answers
+→ `ready: true`. After Effects 2027 runs Ducky's scripts with its defaults (verified). On an
+older version that refuses script file access, the first call that times out switches on
+"Allow Scripts to Write Files and Access Network" itself; `aftereffects_status` then asks
+again. A timed-out change may still have run: read the comp before retrying it. Not under
+Program Files\Adobe? The person sets `AE_EXE`.
 
 No panel, no Node, no token. Ducky runs `AfterFX.exe -r <job>.jsx`; the job writes its
 answer to `%LOCALAPPDATA%/UEFN-Ducky/adobe/aftereffects/`. A dialog open in After Effects

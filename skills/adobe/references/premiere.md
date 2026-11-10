@@ -10,18 +10,22 @@ metadata:
 Tools are named `premiere_*`. Every tool takes one `params` object (keys in its
 description).
 
-## Setup (once)
+## Setup: none
 
-Premiere only runs scripts from inside a panel, so the plugin ships one: **Ducky Bridge**.
+Premiere only runs scripts from inside a panel, so the plugin ships one, **Ducky Bridge**, and
+installs it by itself: the first `premiere_*` call (or `premiere_status`) copies it into
+`%APPDATA%/Adobe/CEP/extensions/`, turns on PlayerDebugMode for this Windows user (unsigned
+panels) and updates it when the plugin ships a newer one. The panel starts with Premiere on
+its own; nobody opens a menu.
 
-1. `premiere_status`. `bridge.installed: false` → `premiere_install_bridge` (copies the panel
-   into `%APPDATA%/Adobe/CEP/extensions/` and sets PlayerDebugMode for this Windows user so
-   Premiere loads an unsigned panel). Tell the person it changed that setting.
-2. The person restarts Premiere Pro and opens **Window > Extensions > Ducky Bridge** once.
-   It starts with Premiere after that while it stays docked; closing the panel stops it.
-3. `premiere_status` → `ready: true`. `bridge.up_to_date: false` after a plugin update →
-   `premiere_install_bridge` again and restart Premiere.
+1. `premiere_status(launch=true)`: installs the panel, starts Premiere, waits until it answers
+   (about 15 s) → `ready: true`. Then `premiere_new_project(path)` or `premiere_open_project`.
+2. `state: "restart_needed"`: the panel was installed while Premiere was already open. Ask the
+   person to save and restart Premiere; never close it for them.
+3. `state: "bridge_closed"`: someone closed the panel. Window > Extensions > Ducky Bridge, or
+   restart Premiere.
 
+Verified on Premiere Pro 2027 from a clean PC: no panel, Premiere closed → ready in 13 s.
 `premiere_remove_bridge` deletes the panel and puts back only the PlayerDebugMode values the
 install changed. Never run `npx`, install a different CEP panel, or edit the registry by hand.
 

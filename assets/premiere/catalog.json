@@ -4,6 +4,7 @@
   {"name": "get_sequence", "kind": "read", "description": "Read one sequence: every video and audio track with its clips (start, end, in/out, media, effects), markers and playhead.", "params": {"sequence": "sequence name (or sequence_id; default: active)"}},
   {"name": "get_clip", "kind": "read", "description": "Read one timeline clip with every component (Motion, Opacity, effects) and property value.", "params": {"sequence": "sequence", "track": "track index (0 = V1/A1)", "track_type": "video | audio", "clip_index": "0-based (or clip name, or time in s)"}},
   {"name": "list_effects", "kind": "read", "description": "List installed video / audio effects or transitions by name.", "params": {"kind": "video_effects | audio_effects | video_transitions | audio_transitions", "query": "name filter"}},
+  {"name": "new_project", "kind": "write", "description": "Create a new .prproj project and open it (no dialog).", "params": {"path": "absolute path for the new .prproj"}},
   {"name": "open_project", "kind": "write", "description": "Open a .prproj project.", "params": {"path": "absolute .prproj path"}},
   {"name": "save_project", "kind": "write", "description": "Save the project, or save it as a new path.", "params": {"path": ".prproj path (optional)"}},
   {"name": "import_media", "kind": "write", "description": "Import video, audio or image files into a bin (created if missing).", "params": {"paths": "[absolute paths]", "bin": "bin name (optional)", "as_numbered_stills": "true for an image sequence"}},

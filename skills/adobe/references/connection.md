@@ -32,18 +32,23 @@ For Illustrator and Photoshop, do not install CEP panels or set `PlayerDebugMode
 ## After Effects
 
 `AfterFX.exe -r <job>.jsx` (Windows) hands one script to the running instance; the job
-writes `result-<id>.json` under `%LOCALAPPDATA%/UEFN-Ducky/adobe/aftereffects/`. Needs
-"Allow Scripts to Write Files and Access Network". Ducky never runs `-r` while After
+writes `result-<id>.json` under `%LOCALAPPDATA%/UEFN-Ducky/adobe/aftereffects/`. After
+Effects 2027 allows that with its defaults; on a version that refuses, the first timed-out
+call turns on "Allow Scripts to Write Files and Access Network" (a preference script needs no
+file access) once per session. Ducky never runs `-r` while After
 Effects is closed (that would boot a copy). A call that times out leaves its job file
 for AE to finish later; old job files are swept after an hour. `AE_EXE` overrides the path.
 
 ## Premiere Pro
 
-Premiere runs ExtendScript only inside a panel. `premiere_install_bridge` is the one
-place this plugin installs one: the Ducky Bridge (`com.uefnducky.premiere.bridge`) in
+Premiere runs ExtendScript only inside a panel. The plugin installs its own on first use
+(any `premiere_*` call, `premiere_status`, and before `launch` starts Premiere), and again
+when the shipped panel is newer: the Ducky Bridge (`com.uefnducky.premiere.bridge`) in
 `%APPDATA%/Adobe/CEP/extensions/`, plus `PlayerDebugMode = 1` under
 `HKCU\Software\Adobe\CSXS.9`–`12` (recorded so `premiere_remove_bridge` restores only
 what it changed). The panel polls `%LOCALAPPDATA%/UEFN-Ducky/adobe/premiere/` for
 `job-*.jsx`, claims each by renaming it, runs it and writes a `bridge.json` heartbeat every
-2 s. States: `bridge_missing` (install), `bridge_closed` (open Window > Extensions >
-Ducky Bridge). `PREMIERE_EXE` overrides the path.
+2 s; it loads with Premiere (StartOn ApplicationActivate), no menu needed. States:
+`restart_needed` (installed while Premiere was open: the person restarts it),
+`bridge_closed` (Window > Extensions > Ducky Bridge, or restart). `PREMIERE_EXE` overrides
+the path.

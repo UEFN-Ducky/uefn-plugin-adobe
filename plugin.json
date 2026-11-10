@@ -1,7 +1,7 @@
 {
   "id": "adobe",
   "kind": "plugin",
-  "version": "1.0.12",
+  "version": "1.0.13",
   "label": "Adobe",
   "description": "Control Illustrator, Photoshop, After Effects, Premiere Pro, PhotoCraft and VectorCraft from Ducky. COM, AfterFX -r scripts, a bundled Premiere bridge panel and the Craft apps' local control servers — no Node, no token, no extra MCP row.",
   "min_app_version": "1.2.357",

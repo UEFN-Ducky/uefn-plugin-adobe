@@ -42,16 +42,16 @@ After Effects / Premiere MCP server: these tools are the integration.
 
 ## After Effects
 
-`aftereffects_status` first (`launch=true` opens it). Needs Edit > Preferences >
-Scripting & Expressions > "Allow Scripts to Write Files and Access Network" once.
+No setup. `aftereffects_status(launch=true)` opens it and waits until it answers.
 `aftereffects_project_info` → `aftereffects_get_comp` → change →
 `aftereffects_render_frame` + `view_image` to look. Each call is one undo step.
 
 ## Premiere Pro
 
-`premiere_status` first. `bridge.installed: false` → `premiere_install_bridge`, then the
-person restarts Premiere and opens Window > Extensions > Ducky Bridge once.
-`premiere_project_info` → `premiere_get_sequence` → edit → `premiere_export_frame` to look.
+No setup. `premiere_status(launch=true)` installs Ducky's panel itself, starts Premiere and
+waits until it answers. `premiere_new_project` / `premiere_open_project` →
+`premiere_get_sequence` → edit → `premiere_export_frame` to look. `restart_needed`: ask the
+person to save and restart Premiere (never close it for them).
 
 ## Status
 

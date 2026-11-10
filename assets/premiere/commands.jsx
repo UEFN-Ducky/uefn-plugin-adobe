@@ -12,6 +12,11 @@ DUCKY_PR.TICKS = 254016000000;
 DUCKY_PR.secs = function (t) {
     if (t === null || t === undefined) return null;
     try { if (typeof t.seconds === "number") return t.seconds; } catch (e) {}
+    // Sequence end, in/out and player position come back as tick strings.
+    if (typeof t === "string") {
+        var ticks = Number(t);
+        return isNaN(ticks) ? null : ticks / DUCKY_PR.TICKS;
+    }
     var n = Number(t);
     return isNaN(n) ? null : n;
 };
@@ -127,8 +132,11 @@ DUCKY_PR.clip = function (seq, p) {
 DUCKY_PR.qeSequence = function (seq) {
     app.enableQE();
     for (var i = 0; i < qe.project.numSequences; i++) {
-        var q = qe.project.getSequenceAt(i);
-        try { if (String(q.guid) === String(seq.sequenceID)) return q; } catch (e) {}
+        // getSequenceAt throws for some indexes when a project holds several sequences.
+        try {
+            var q = qe.project.getSequenceAt(i);
+            if (q && String(q.guid) === String(seq.sequenceID)) return q;
+        } catch (e) { /* next */ }
     }
     try { app.project.activeSequence = seq; } catch (eSet) {}
     try {
@@ -320,6 +328,20 @@ PR_CMD.list_effects = function (p) {
 
 // ---------------------------------------------------------------- project
 
+PR_CMD.new_project = function (p) {
+    if (!DUCKY.has(p, "path")) throw new Error("path (a new .prproj file) required");
+    var path = String(p.path).replace(/\\/g, "/");
+    if (!/\.prproj$/i.test(path)) path += ".prproj";
+    if (DUCKY.file(path).exists) throw new Error("a project already exists there: " + path + " (open_project opens it)");
+    var same = function () {
+        try { return app.project && String(app.project.path).replace(/\\/g, "/").toLowerCase() === path.toLowerCase(); } catch (e) { return false; }
+    };
+    app.newProject(path);
+    for (var i = 0; i < 50 && !same(); i++) $.sleep(100);
+    if (!same()) throw new Error("Premiere did not open the new project (a dialog may be waiting in Premiere)");
+    return PR_CMD.ping();
+};
+
 PR_CMD.open_project = function (p) {
     if (!DUCKY.has(p, "path")) throw new Error("path required");
     if (!DUCKY.file(p.path).exists) throw new Error("file not found: " + p.path);
@@ -343,7 +365,14 @@ PR_CMD.import_media = function (p) {
     var ok = DUCKY_PR.project().importFiles(paths, true, bin, !!p.as_numbered_stills);
     var added = [];
     for (var j = before; j < bin.children.numItems; j++) added.push({ id: bin.children[j].nodeId, name: bin.children[j].name });
-    return { imported: ok, bin: bin.name, items: added };
+    var missing = [];
+    for (var k = 0; k < paths.length; k++) {
+        var base = String(paths[k]).replace(/\\/g, "/").split("/").pop();
+        var hit = false;
+        for (var a = 0; a < added.length; a++) if (added[a].name === base) hit = true;
+        if (!hit) missing.push(String(paths[k]));
+    }
+    return { imported: ok && missing.length === 0, bin: bin.name, items: added, not_imported: missing };
 };
 
 PR_CMD.create_bin = function (p) {

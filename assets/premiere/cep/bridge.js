@@ -3,7 +3,7 @@
 // A heartbeat file tells Ducky the bridge is alive. No network, no telemetry.
 (function () {
   "use strict";
-  var BRIDGE_VERSION = "1.0.0";
+  var BRIDGE_VERSION = "1.0.1";
   var fs = require("fs");
   var path = require("path");
   var os = require("os");

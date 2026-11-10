@@ -204,6 +204,23 @@ def remove_bridge(*, extensions_dir: Path | None = None) -> dict[str, Any]:
     return {"ok": True, "removed": removed, "debug_mode_restored": restored}
 
 
+_INSTALLED_NOW: dict[str, bool] = {}
+
+
+def ensure_bridge() -> dict[str, Any] | None:
+    """Zero setup: install (or update) the Ducky Bridge panel the first time it is needed.
+    Returns the install answer when it installed now, else None."""
+    state = bridge_state()
+    if state["installed"] and state["up_to_date"]:
+        return None
+    try:
+        out = install_bridge()
+    except (OSError, PermissionError) as exc:
+        return {"ok": False, "error": f"could not install the Ducky Bridge panel: {exc}"}
+    _INSTALLED_NOW["while_running"] = running()
+    return out
+
+
 def heartbeat() -> dict[str, Any] | None:
     path = jobs.job_root(APP) / "bridge.json"
     try:
@@ -224,12 +241,16 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
     ``app`` and ``params``)."""
     if find_exe() is None and not running():
         return {"ok": False, "state": "missing_app", "error": "Premiere Pro is not installed (set PREMIERE_EXE if it lives elsewhere)."}
+    installed = ensure_bridge()
+    if installed is not None and not installed.get("ok"):
+        return {"ok": False, "state": "bridge_missing", "error": installed.get("error")}
     if not running():
         return {"ok": False, "state": "launching", "error": "Premiere Pro is not running. Call premiere_status(launch=true), then retry."}
     if heartbeat() is None:
-        state = bridge_state()
-        if not state["installed"]:
-            return {"ok": False, "state": "bridge_missing", "error": "The Ducky Bridge panel is not installed in Premiere Pro.", "hint": "Call premiere_install_bridge, then restart Premiere Pro."}
+        if _INSTALLED_NOW.get("while_running"):
+            return {"ok": False, "state": "restart_needed",
+                    "error": "Ducky installed its Premiere panel while Premiere Pro was open: Premiere loads it on its next start.",
+                    "hint": "Ask the person to save and restart Premiere Pro (never close it for them), then retry."}
         return {"ok": False, "state": "bridge_closed", "error": "The Ducky Bridge panel is not running in Premiere Pro.", "hint": BRIDGE_HINT}
     wait = timeout if timeout is not None else TIMEOUTS.get(command, 60.0)
     _jid, job, result = jobs.new_job(APP)
@@ -255,6 +276,8 @@ def launch(wait: float = 180.0) -> dict[str, Any]:
     if exe is None:
         return {"ok": False, "error": "Premiere Pro is not installed"}
     if not running():
+        ensure_bridge()  # before Premiere starts, so it loads the panel on this start
+        _INSTALLED_NOW["while_running"] = False
         subprocess.Popen([str(exe)], close_fds=True)
     deadline = time.monotonic() + wait
     while time.monotonic() < deadline:
@@ -268,6 +291,8 @@ def launch(wait: float = 180.0) -> dict[str, Any]:
 
 def status(launch_app: bool = False) -> dict[str, Any]:
     exe = find_exe()
+    if exe:
+        ensure_bridge()
     if launch_app and exe and not running():
         launch()
     is_running = running()

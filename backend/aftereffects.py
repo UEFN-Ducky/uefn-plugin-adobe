@@ -98,14 +98,46 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
         # Keep the job file: AE may still read it once a dialog closes, and a missing
         # -r file raises a modal of its own. jobs.sweep drops it within the hour.
         jobs.remove_quietly(result)
+        healed = allow_script_files(exe)
         return {
             "ok": False,
             "state": "error",
             "error": f"After Effects did not answer within {int(wait)} s.",
-            "hint": PREF_HINT,
+            "hint": (
+                "Ducky turned on After Effects' 'Allow Scripts to Write Files and Access Network' "
+                "preference. The script may already have run: read the project (aftereffects_get_comp) "
+                "before retrying a change." if healed else PREF_HINT
+            ),
         }
     jobs.remove_quietly(job, result)
     return jobs.shape(data)
+
+
+# Older After Effects versions refuse File writes from scripts until this is on; setting a
+# preference needs no file access, so a bare -r script can switch it on.
+_PREF_JSX = (
+    'app.preferences.savePrefAsLong("Main Pref Section v2", '
+    '"Pref_SCRIPTING_FILE_NETWORK_SECURITY", 1, PREFType.PREF_Type_MACHINE_INDEPENDENT);\n'
+    "app.preferences.saveToDisk(); app.preferences.reload();\n"
+)
+_HEALED: dict[str, bool] = {}
+
+
+def allow_script_files(exe: Path | None = None) -> bool:
+    """Turn on 'Allow Scripts to Write Files and Access Network' in the running After Effects,
+    once per session. Returns whether it was sent."""
+    exe = exe or find_exe()
+    if exe is None or not running() or _HEALED.get(str(exe)):
+        return False
+    _jid, job, _result = jobs.new_job(APP)
+    job.write_text("(function () {\ntry {\n" + _PREF_JSX + "} catch (e) {}\n})();\n", encoding="utf-8")
+    try:
+        subprocess.Popen([str(exe), "-r", str(job)], close_fds=True, **_win_no_window_kwargs())
+    except OSError:
+        return False
+    _HEALED[str(exe)] = True
+    time.sleep(3.0)
+    return True
 
 
 def launch(wait: float = 120.0) -> dict[str, Any]:
@@ -146,6 +178,8 @@ def status(launch_app: bool = False) -> dict[str, Any]:
             return row
     if row["running"]:
         ping = run("ping", {}, timeout=15.0)
+        if not ping.get("ok") and _HEALED.get(row["exe"]):
+            ping = run("ping", {}, timeout=15.0)  # ping changes nothing: safe to ask again
         row["ready"] = bool(ping.get("ok"))
         row["version"] = str(ping.get("version") or "")
         row["project"] = ping.get("project")

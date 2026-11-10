@@ -113,15 +113,66 @@ def test_ae_run_refuses_when_closed() -> None:
     assert out["state"] == "launching"
 
 
-def test_premiere_run_needs_the_bridge(tmp_path: Path) -> None:
+def test_premiere_installs_its_panel_by_itself(tmp_path: Path) -> None:
+    """Zero setup: the first call installs the panel; Premiere already open must restart once."""
+    calls: list[str] = []
+
+    def fake_install(**_kw):
+        calls.append("install")
+        return {"ok": True}
+
+    premiere._INSTALLED_NOW.clear()
     with (
         patch.object(premiere, "find_exe", return_value=Path("Adobe Premiere Pro.exe")),
         patch.object(premiere, "running", return_value=True),
         patch.object(premiere, "heartbeat", return_value=None),
-        patch.object(premiere, "cep_extensions_dir", return_value=tmp_path),
+        patch.object(premiere, "bridge_state", return_value={"installed": False, "up_to_date": False}),
+        patch.object(premiere, "install_bridge", side_effect=fake_install),
     ):
         out = premiere.run("ping")
-    assert out["state"] == "bridge_missing"
+    assert calls == ["install"]
+    assert out["state"] == "restart_needed" and "never close it for them" in out["hint"]
+
+
+def test_premiere_launch_installs_before_starting(tmp_path: Path) -> None:
+    order: list[str] = []
+    premiere._INSTALLED_NOW.clear()
+    with (
+        patch.object(premiere, "find_exe", return_value=Path("Adobe Premiere Pro.exe")),
+        patch.object(premiere, "running", return_value=False),
+        patch.object(premiere, "bridge_state", return_value={"installed": False, "up_to_date": False}),
+        patch.object(premiere, "install_bridge", side_effect=lambda **_k: order.append("install") or {"ok": True}),
+        patch.object(premiere.subprocess, "Popen", side_effect=lambda *a, **k: order.append("start")),
+        patch.object(premiere.time, "sleep"),
+    ):
+        premiere.launch(wait=0.01)
+    assert order == ["install", "start"]
+
+
+def test_premiere_panel_up_to_date_is_left_alone() -> None:
+    with (
+        patch.object(premiere, "bridge_state", return_value={"installed": True, "up_to_date": True}),
+        patch.object(premiere, "install_bridge") as install,
+    ):
+        assert premiere.ensure_bridge() is None
+    install.assert_not_called()
+
+
+def test_ae_timeout_turns_on_script_file_access_once(tmp_path: Path) -> None:
+    sent: list[list[str]] = []
+    aftereffects._HEALED.clear()
+    with (
+        patch.object(aftereffects, "find_exe", return_value=Path("AfterFX.exe")),
+        patch.object(aftereffects, "running", return_value=True),
+        patch.object(aftereffects.subprocess, "Popen", side_effect=lambda argv, **k: sent.append(argv)),
+        patch.object(aftereffects.jobs, "wait_result", return_value=None),
+        patch.object(aftereffects.time, "sleep"),
+    ):
+        first = aftereffects.run("get_comp", {}, timeout=0.1)
+        second = aftereffects.run("get_comp", {}, timeout=0.1)
+    assert "may already have run" in first["hint"]
+    assert second["hint"] == aftereffects.PREF_HINT  # healed once per session
+    assert len(sent) == 3  # the job, the preference script, the second job
 
 
 # ---------------------------------------------------------------- CEP bridge
@@ -442,6 +493,13 @@ def test_premiere_set_clip_slip_and_move(tmp_path: Path) -> None:
 def test_premiere_mute_track(tmp_path: Path) -> None:
     data, st = _pr_timeline(tmp_path, "set_track", {"track": 0, "track_type": "audio", "mute": True})
     assert data["ok"] is True and data["result"]["muted"] is True and st["muted"] == 1
+
+
+def test_premiere_tick_strings_are_seconds(tmp_path: Path) -> None:
+    """Premiere answers sequence end / player position as tick strings (seen on Premiere 2027)."""
+    code = "return [DUCKY_PR.secs('254016000000'), DUCKY_PR.secs({seconds: 2.5}), DUCKY_PR.secs(3)];"
+    data, _ = _run_job(tmp_path, premiere, "DUCKY_PR.runFn", "pr", "script", {}, code=code)
+    assert data["result"] == [1, 2.5, 3]
 
 
 def test_premiere_job_ping_and_errors(tmp_path: Path) -> None:
