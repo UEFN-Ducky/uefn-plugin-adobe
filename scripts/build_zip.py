@@ -96,9 +96,19 @@ def _find_ducky_repo() -> Path:
     env = os.environ.get("DUCKY_REPO", "").strip()
     if env:
         candidates.append(Path(env))
-    github = ROOT.parent.parent  # .../GitHub (this repo lives under uefn-plugins/)
-    for name in ("UEFN-Ducky-Release", "UEFN-Ducky"):
-        candidates.append(github / name)
+    roots = [ROOT]
+    # A git worktree (e.g. a release sandbox) lives elsewhere; its main checkout
+    # still sits under .../GitHub/uefn-plugins/.
+    common = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        capture_output=True, text=True, check=False,
+    )
+    if common.returncode == 0 and common.stdout.strip():
+        roots.append(Path(common.stdout.strip()).parent)
+    for root in roots:
+        github = root.parent.parent  # .../GitHub (this repo lives under uefn-plugins/)
+        for name in ("UEFN-Ducky-Release", "UEFN-Ducky"):
+            candidates.append(github / name)
     for cand in candidates:
         if (cand / "ducky_app" / "backend" / "uefn_plugins" / "compile.py").is_file():
             return cand
