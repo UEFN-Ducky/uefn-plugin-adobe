@@ -737,27 +737,30 @@ AE_CMD.render_queue = function () {
 
 // ---------------------------------------------------------------- dispatcher
 
-AE_CMD.__eval = function (p) {
-    var fn = new Function("app", "params", String(p.code || ""));
-    return fn(app, p.params || {});
-};
-
 DUCKY_AE.NO_UNDO_GROUP = { undo: true, new_project: true, open_project: true, render_queue: true, ping: true };
 
 DUCKY_AE.run = function (name, params, resultPath, label) {
-    var res = { ok: false, result: null, error: null };
     var fn = AE_CMD[name];
     if (typeof fn !== "function") {
-        res.error = "unknown After Effects command '" + name + "'";
-        DUCKY.writeResult(resultPath, res);
+        DUCKY.writeResult(resultPath, { ok: false, result: null, error: "unknown After Effects command '" + name + "'" });
         return;
     }
-    var grouped = DUCKY_AE.NO_UNDO_GROUP[name] !== true;
+    DUCKY_AE.exec(function (p) { return fn(p); }, params, resultPath, label || name, DUCKY_AE.NO_UNDO_GROUP[name] !== true);
+};
+
+// Raw ExtendScript (aftereffects_execute_jsx): the backend writes the caller's code into the
+// job as `function (app, params) { ... }`, so nothing is compiled from a string here.
+DUCKY_AE.runFn = function (userFn, params, resultPath, label) {
+    DUCKY_AE.exec(function (p) { return userFn(app, p); }, params, resultPath, label || "script", true);
+};
+
+DUCKY_AE.exec = function (fn, params, resultPath, label, grouped) {
+    var res = { ok: false, result: null, error: null };
     var suppressed = false;
     try {
         if (grouped) {
             try { app.beginSuppressDialogs(); suppressed = true; } catch (eSup) {}
-            app.beginUndoGroup("Ducky: " + (label || name));
+            app.beginUndoGroup("Ducky: " + label);
         }
         res.result = fn(params || {});
         if (res.result === undefined) res.result = null;

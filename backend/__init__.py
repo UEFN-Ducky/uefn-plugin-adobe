@@ -31,11 +31,11 @@ def execute_jsx(app: str, code: str, params: dict[str, Any] | None = None) -> di
         if target.startswith("after") or target == "ae":
             from . import aftereffects
 
-            return aftereffects.run("__eval", {"code": code, "params": params or {}}, label="script")
+            return aftereffects.run("script", params or {}, code=code, label="script")
         if target.startswith("prem") or target == "pr":
             from . import premiere
 
-            return premiere.run("__eval", {"code": code, "params": params or {}})
+            return premiere.run("script", params or {}, code=code)
     except Exception as exc:
         return {"ok": False, "error": str(exc)}
     return {"ok": False, "error": "app must be illustrator, photoshop, aftereffects or premiere"}

@@ -250,7 +250,7 @@ def _node() -> str | None:
     return shutil.which("node") or os.environ.get("DUCKY_NODE") or None
 
 
-def _run_job(tmp_path: Path, mod, runner: str, host: str, command: str, params: dict) -> tuple[dict, dict]:
+def _run_job(tmp_path: Path, mod, runner: str, host: str, command: str, params: dict, code: str | None = None) -> tuple[dict, dict]:
     node = _node()
     if not node:
         pytest.skip("node is not on PATH")
@@ -258,7 +258,11 @@ def _run_job(tmp_path: Path, mod, runner: str, host: str, command: str, params: 
     harness.write_text(HARNESS, encoding="utf-8")
     result = tmp_path / f"result-{command}.json"
     job = tmp_path / f"job-{command}.jsx"
-    job.write_text(jobs.build_job(mod.LIBS, runner, command, params, result), encoding="utf-8")
+    if code is not None:
+        script = jobs.build_code_job(mod.LIBS, runner, code, params, result)
+    else:
+        script = jobs.build_job(mod.LIBS, runner, command, params, result)
+    job.write_text(script, encoding="utf-8")
     proc = subprocess.run([node, str(harness), str(job), host], capture_output=True, text=True, timeout=30)
     assert proc.returncode == 0, proc.stderr
     return json.loads(result.read_text(encoding="utf-8")), json.loads(proc.stdout or "{}")
@@ -280,12 +284,29 @@ def test_ae_job_errors_are_reported(tmp_path: Path) -> None:
     assert "unknown After Effects command" in data["error"]
 
 
-def test_ae_job_eval_and_unicode(tmp_path: Path) -> None:
-    data, _ = _run_job(
-        tmp_path, aftereffects, "DUCKY_AE.run", "ae", "__eval",
-        {"code": "return {v: app.version, s: params.s, list: [1, 'a-b', null]};", "params": {"s": "Café \"q\" \n"}},
+def test_ae_raw_code_and_unicode(tmp_path: Path) -> None:
+    data, counters = _run_job(
+        tmp_path, aftereffects, "DUCKY_AE.runFn", "ae", "script", {"s": "Café \"q\" \n"},
+        code="return {v: app.version, s: params.s, list: [1, 'a-b', null]};",
     )
     assert data == {"ok": True, "result": {"v": "25.1", "s": "Café \"q\" \n", "list": [1, "a-b", None]}, "error": None}
+    assert counters == {"undo": 0, "suppress": 0}
+
+
+def test_premiere_raw_code(tmp_path: Path) -> None:
+    data, _ = _run_job(tmp_path, premiere, "DUCKY_PR.runFn", "pr", "script", {"n": 2}, code="return app.version + ':' + params.n;")
+    assert data["ok"] is True and data["result"] == "25.0:2"
+
+
+def test_nothing_the_store_scan_refuses() -> None:
+    """The Store's upload scan refuses a plugin whose files compile code from a string."""
+    banned = "new " + "function"  # spelled apart so this file never matches itself
+    root = plugin_root()
+    hits = [str(p.relative_to(root)) for p in root.rglob("*")
+            if p.is_file() and ".git" not in p.parts and "deploy" not in p.parts
+            and p.suffix in {".py", ".js", ".jsx", ".json", ".md", ".html"}
+            and banned in p.read_text(encoding="utf-8", errors="ignore").lower()]
+    assert hits == []
 
 
 def _pr_timeline(tmp_path: Path, command: str, params: dict) -> tuple[dict, dict]:

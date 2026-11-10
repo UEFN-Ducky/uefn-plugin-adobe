@@ -65,7 +65,10 @@ def running() -> bool:
     return _win_exe_running(EXE_NAME)
 
 
-def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | None = None, label: str = "") -> dict[str, Any]:
+def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | None = None, label: str = "",
+        code: str | None = None) -> dict[str, Any]:
+    """Run one catalog command, or with ``code`` raw ExtendScript (a function body with
+    ``app`` and ``params``) as one undo step."""
     exe = find_exe()
     if exe is None and not running():
         return {"ok": False, "state": "missing_app", "error": "After Effects is not installed (no AfterFX.exe under Program Files\\Adobe). Set AE_EXE if it lives elsewhere."}
@@ -79,7 +82,10 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
         return {"ok": False, "state": "error", "error": "After Effects is running but AfterFX.exe was not found. Set AE_EXE to its full path."}
     wait = timeout if timeout is not None else TIMEOUTS.get(command, 60.0)
     _jid, job, result = jobs.new_job(APP)
-    script = jobs.build_job(LIBS, "DUCKY_AE.run", command, params or {}, result, label)
+    if code is not None:
+        script = jobs.build_code_job(LIBS, "DUCKY_AE.runFn", code, params or {}, result, label or "script")
+    else:
+        script = jobs.build_job(LIBS, "DUCKY_AE.run", command, params or {}, result, label)
     job.write_bytes("﻿".encode("utf-8") + script.encode("utf-8"))
     try:
         # The forwarder hands the script to the running instance and exits.
@@ -168,7 +174,7 @@ def register_aftereffects_tools(api: Any) -> None:
     @api.tool(name="aftereffects_execute_jsx", intent=INTENT, listener=False)
     def aftereffects_execute_jsx(code: str, params: dict[str, Any] | None = None) -> str:
         """Run raw ExtendScript in After Effects as a function body with `app` and `params` in scope; `return` a JSON-able value. One undo step. Last resort when no aftereffects_* tool fits."""
-        return json.dumps(run("__eval", {"code": code, "params": params or {}}, label="script"), indent=2, default=str)
+        return json.dumps(run("script", params or {}, code=code, label="script"), indent=2, default=str)
 
     for row in catalog():
         name = str(row["name"])

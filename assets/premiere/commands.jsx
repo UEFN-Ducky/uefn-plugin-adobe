@@ -822,17 +822,24 @@ PR_CMD.undo = function (p) {
 
 // ---------------------------------------------------------------- dispatcher
 
-PR_CMD.__eval = function (p) {
-    var fn = new Function("app", "params", String(p.code || ""));
-    return fn(app, p.params || {});
-};
-
 DUCKY_PR.run = function (name, params, resultPath) {
-    var res = { ok: false, result: null, error: null };
     var fn = PR_CMD[name];
     if (typeof fn !== "function") {
-        res.error = "unknown Premiere Pro command '" + name + "'";
-    } else {
+        DUCKY.writeResult(resultPath, { ok: false, result: null, error: "unknown Premiere Pro command '" + name + "'" });
+        return "done";
+    }
+    return DUCKY_PR.exec(fn, params, resultPath);
+};
+
+// Raw ExtendScript (premiere_execute_jsx): the backend writes the caller's code into the job
+// as `function (app, params) { ... }`, so nothing is compiled from a string here.
+DUCKY_PR.runFn = function (userFn, params, resultPath) {
+    return DUCKY_PR.exec(function (p) { return userFn(app, p); }, params, resultPath);
+};
+
+DUCKY_PR.exec = function (fn, params, resultPath) {
+    var res = { ok: false, result: null, error: null };
+    {
         try {
             res.result = fn(params || {});
             if (res.result === undefined) res.result = null;

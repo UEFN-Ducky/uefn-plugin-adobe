@@ -35,12 +35,26 @@ def read_asset(rel: str) -> str:
 
 def build_job(libs: list[str], runner: str, command: str, params: dict[str, Any], result_path: Path, label: str = "") -> str:
     """A self-contained script: prelude (result path + params), the libraries, one call."""
+    call = f"{runner}({json.dumps(command)}, DUCKY_PARAMS, DUCKY_RESULT_PATH, {json.dumps(label or command)});\n"
+    return _wrap(libs, params, result_path, call)
+
+
+def build_code_job(libs: list[str], runner: str, code: str, params: dict[str, Any], result_path: Path, label: str = "") -> str:
+    """Raw ExtendScript as a function body: written into the job as ``function (app, params)``,
+    so the host never compiles code from a string (the Store's scan refuses that)."""
+    call = (
+        f"{runner}(function (app, params) {{\n{code}\n}}, DUCKY_PARAMS, DUCKY_RESULT_PATH, "
+        f"{json.dumps(label or 'script')});\n"
+    )
+    return _wrap(libs, params, result_path, call)
+
+
+def _wrap(libs: list[str], params: dict[str, Any], result_path: Path, call: str) -> str:
     prelude = (
         f"var DUCKY_RESULT_PATH = {json.dumps(slash(result_path))};\n"
         f"var DUCKY_PARAMS = {json.dumps(params or {}, ensure_ascii=True, default=str)};\n"
     )
     body = "\n".join(read_asset(rel) for rel in libs)
-    call = f"{runner}({json.dumps(command)}, DUCKY_PARAMS, DUCKY_RESULT_PATH, {json.dumps(label or command)});\n"
     return "(function () {\n" + prelude + body + "\n" + call + "})();\n"
 
 

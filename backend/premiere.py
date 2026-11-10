@@ -218,7 +218,10 @@ def heartbeat() -> dict[str, Any] | None:
 # ---------------------------------------------------------------- jobs
 
 
-def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | None = None) -> dict[str, Any]:
+def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | None = None,
+        code: str | None = None) -> dict[str, Any]:
+    """Run one catalog command, or with ``code`` raw ExtendScript (a function body with
+    ``app`` and ``params``)."""
     if find_exe() is None and not running():
         return {"ok": False, "state": "missing_app", "error": "Premiere Pro is not installed (set PREMIERE_EXE if it lives elsewhere)."}
     if not running():
@@ -231,7 +234,11 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
     wait = timeout if timeout is not None else TIMEOUTS.get(command, 60.0)
     _jid, job, result = jobs.new_job(APP)
     tmp = job.with_name(job.name + ".tmp")
-    tmp.write_text(jobs.build_job(LIBS, "DUCKY_PR.run", command, params or {}, result), encoding="utf-8")
+    if code is not None:
+        script = jobs.build_code_job(LIBS, "DUCKY_PR.runFn", code, params or {}, result)
+    else:
+        script = jobs.build_job(LIBS, "DUCKY_PR.run", command, params or {}, result)
+    tmp.write_text(script, encoding="utf-8")
     tmp.replace(job)  # the panel never sees a half-written job
     data = jobs.wait_result(result, wait, alive=lambda: heartbeat() is not None)
     if data is None:
@@ -355,7 +362,7 @@ def register_premiere_tools(api: Any) -> None:
     @api.tool(name="premiere_execute_jsx", intent=INTENT, listener=False)
     def premiere_execute_jsx(code: str, params: dict[str, Any] | None = None) -> str:
         """Run raw ExtendScript in Premiere Pro as a function body with `app` and `params` in scope; `return` a JSON-able value. Last resort when no premiere_* tool fits."""
-        return json.dumps(run("__eval", {"code": code, "params": params or {}}), indent=2, default=str)
+        return json.dumps(run("script", params or {}, code=code), indent=2, default=str)
 
     for row in catalog():
         name = str(row["name"])

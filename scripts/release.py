@@ -78,6 +78,9 @@ def mcp_call(base_url: str, api_key: str, name: str, arguments: dict) -> dict:
     if payload.get("error"):
         raise SystemExit(f"MCP error: {payload['error']}")
     result = payload.get("result") or {}
+    if result.get("isError"):
+        texts = [str(b.get("text") or "") for b in result.get("content") or [] if isinstance(b, dict)]
+        raise SystemExit(f"{name} failed: {' '.join(texts).strip() or result}")
     structured = result.get("structuredContent")
     if isinstance(structured, dict):
         return structured
@@ -175,6 +178,13 @@ def publish(zip_path: Path, *, category: str, changelog: str) -> None:
     print(json.dumps(result, indent=2))
     if result.get("ok") is False or result.get("error"):
         raise SystemExit(result.get("error") or "release failed")
+    # "ok" is not proof: the version must be the one the public catalog now serves.
+    want = json.loads((ROOT / "plugin.json").read_text(encoding="utf-8"))["version"]
+    catalog = mcp_call(base, key, "uds_public_catalog", {"search": "adobe"})
+    live = next((i for i in catalog.get("items") or [] if i.get("slug") == "adobe"), {})
+    if str(live.get("latest_version") or "") != str(want):
+        raise SystemExit(f"Store still serves adobe {live.get('latest_version')!r}, not {want!r}: {result}")
+    print(f"live on the Store: adobe {want}")
 
 
 def main() -> None:
