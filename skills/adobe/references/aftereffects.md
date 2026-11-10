@@ -20,6 +20,11 @@ older version that refuses script file access, the first call that times out swi
 again. A timed-out change may still have run: read the comp before retrying it. Not under
 Program Files\Adobe? The person sets `AE_EXE`.
 
+A dialog in After Effects stops its scripts: while a call waits, Ducky presses titled
+single-OK message boxes itself; anything that asks a question comes back as
+`state: "popup"` with numbered captures for `app_popup_press(hwnd, n)`
+(`app_popups(app="aftereffects")` any time).
+
 No panel, no Node, no token. Ducky runs `AfterFX.exe -r <job>.jsx`; the job writes its
 answer to `%LOCALAPPDATA%/UEFN-Ducky/adobe/aftereffects/`. A dialog open in After Effects
 blocks scripting: ask the person to close it, then retry.

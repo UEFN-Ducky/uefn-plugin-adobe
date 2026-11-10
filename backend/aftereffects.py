@@ -90,7 +90,7 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
     try:
         # The forwarder hands the script to the running instance and exits.
         subprocess.Popen([str(exe), "-r", str(job)], close_fds=True, **_win_no_window_kwargs())
-        data = jobs.wait_result(result, wait, alive=running)
+        data, popups = jobs.wait_unblocking(result, wait, "aftereffects", alive=running)
     except OSError as exc:
         jobs.remove_quietly(job)
         return {"ok": False, "state": "error", "error": f"could not start AfterFX.exe: {exc}"}
@@ -98,6 +98,10 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
         # Keep the job file: AE may still read it once a dialog closes, and a missing
         # -r file raises a modal of its own. jobs.sweep drops it within the hour.
         jobs.remove_quietly(result)
+        if any(p.get("blocking") for p in popups.get("popups") or []):
+            return {"ok": False, "state": "popup", "error": "A dialog in After Effects is waiting for an answer.",
+                    "popups": popups["popups"], "pressed": popups["pressed"],
+                    "hint": "Look at the capture, then app_popup_press(hwnd, n). The change may already have run: read before retrying."}
         healed = allow_script_files(exe)
         return {
             "ok": False,
@@ -110,7 +114,10 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
             ),
         }
     jobs.remove_quietly(job, result)
-    return jobs.shape(data)
+    out = jobs.shape(data)
+    if popups.get("pressed"):
+        out["popups_pressed"] = popups["pressed"]  # what After Effects said on the way
+    return out
 
 
 # Older After Effects versions refuse File writes from scripts until this is on; setting a

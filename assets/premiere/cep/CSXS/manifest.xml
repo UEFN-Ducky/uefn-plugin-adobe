@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<ExtensionManifest Version="7.0" ExtensionBundleId="com.uefnducky.premiere.bridge" ExtensionBundleVersion="1.0.1" ExtensionBundleName="Ducky Bridge">
+<ExtensionManifest Version="7.0" ExtensionBundleId="com.uefnducky.premiere.bridge" ExtensionBundleVersion="1.0.2" ExtensionBundleName="Ducky Bridge">
   <ExtensionList>
-    <Extension Id="com.uefnducky.premiere.bridge.panel" Version="1.0.1"/>
+    <Extension Id="com.uefnducky.premiere.bridge.panel" Version="1.0.2"/>
   </ExtensionList>
   <ExecutionEnvironment>
     <HostList>
@@ -25,19 +25,19 @@
           </CEFCommandLine>
         </Resources>
         <Lifecycle>
-          <AutoVisible>true</AutoVisible>
+          <!-- A background extension: starts with Premiere, never shows a window or a menu item. -->
+          <AutoVisible>false</AutoVisible>
           <StartOn>
             <Event>com.adobe.csxs.events.ApplicationActivate</Event>
             <Event>applicationActivate</Event>
           </StartOn>
         </Lifecycle>
         <UI>
-          <Type>Panel</Type>
-          <Menu>Ducky Bridge</Menu>
+          <Type>Custom</Type>
           <Geometry>
             <Size>
-              <Height>160</Height>
-              <Width>280</Width>
+              <Height>1</Height>
+              <Width>1</Width>
             </Size>
           </Geometry>
         </UI>

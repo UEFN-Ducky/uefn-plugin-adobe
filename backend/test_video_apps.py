@@ -495,6 +495,65 @@ def test_premiere_mute_track(tmp_path: Path) -> None:
     assert data["ok"] is True and data["result"]["muted"] is True and st["muted"] == 1
 
 
+def test_a_stalled_job_gets_its_ok_box_pressed(tmp_path: Path) -> None:
+    """Premiere's File Import Failure held a job: the wait asks Ducky's app_popups to press it,
+    then the job finishes and the answer says what was pressed."""
+    result = tmp_path / "result-x.json"
+    asked: list[dict] = []
+
+    class Api:
+        def call_tool(self, name, args):
+            asked.append({"name": name, **args})
+            result.write_text(json.dumps({"ok": True, "result": {"imported": False}}), encoding="utf-8")
+            return json.dumps({"ok": True, "pressed": [{"title": "File Import Failure", "closed": True, "text": "unsupported"}],
+                               "popups": []})
+
+    jobs._API[:] = [Api()]
+    try:
+        data, seen = jobs.wait_unblocking(result, 5.0, "premiere", every=0.3)
+    finally:
+        jobs._API[:] = []
+    assert asked == [{"name": "app_popups", "app": "premiere", "press_lone_ok": True}]
+    assert data == {"ok": True, "result": {"imported": False}}
+    assert seen["pressed"][0]["title"] == "File Import Failure"
+
+
+def test_a_question_popup_is_reported_not_pressed(tmp_path: Path) -> None:
+    """A Save prompt (several buttons) stays up: the call answers state=popup with its buttons."""
+
+    class Api:
+        def call_tool(self, name, args):
+            return json.dumps({"ok": True, "pressed": [], "popups": [
+                {"hwnd": 7, "title": "", "blocking": True, "buttons": [{"n": 1}, {"n": 2}, {"n": 3}], "path": "x.png"}]})
+
+    jobs._API[:] = [Api()]
+    try:
+        with (
+            patch.object(premiere, "find_exe", return_value=Path("Adobe Premiere Pro.exe")),
+            patch.object(premiere, "running", return_value=True),
+            patch.object(premiere, "heartbeat", return_value={"time": 1}),
+            patch.object(premiere, "ensure_bridge", return_value=None),
+            patch.object(jobs, "job_root", return_value=tmp_path),
+        ):
+            out = premiere.run("import_media", {"paths": ["x"]}, timeout=1.5)
+    finally:
+        jobs._API[:] = []
+    assert out["state"] == "popup" and out["popups"][0]["hwnd"] == 7 and "app_popup_press" in out["hint"]
+
+
+def test_no_popup_tool_means_a_plain_timeout(tmp_path: Path) -> None:
+    jobs._API[:] = []
+    assert jobs.unblock("premiere") == {}
+
+
+def test_premiere_bridge_is_a_hidden_background_extension() -> None:
+    manifest = (premiere.bridge_source() / "CSXS" / "manifest.xml").read_text(encoding="utf-8")
+    assert "<Type>Custom</Type>" in manifest and "<AutoVisible>false</AutoVisible>" in manifest
+    assert "<Menu>" not in manifest
+    js = (premiere.bridge_source() / "bridge.js").read_text(encoding="utf-8")
+    assert f'BRIDGE_VERSION = "{premiere.bridge_version(premiere.bridge_source())}"' in js
+
+
 def test_premiere_tick_strings_are_seconds(tmp_path: Path) -> None:
     """Premiere answers sequence end / player position as tick strings (seen on Premiere 2027)."""
     code = "return [DUCKY_PR.secs('254016000000'), DUCKY_PR.secs({seconds: 2.5}), DUCKY_PR.secs(3)];"

@@ -26,6 +26,16 @@ its own; nobody opens a menu.
    restart Premiere.
 
 Verified on Premiere Pro 2027 from a clean PC: no panel, Premiere closed → ready in 13 s.
+The panel is a hidden background extension: no window, no menu item.
+
+## Popups
+
+A Premiere dialog stops its scripts. While a call waits, Ducky presses Premiere's titled
+single-OK message boxes itself (File Import Failure, export warnings) and the answer lists
+them in `popups_pressed` with what they said. A question (the Save project prompt: Save /
+Don't Save / Cancel) is never pressed for you: the call answers `state: "popup"` with each
+popup's numbered capture; decide (ask the person when it saves or discards their work), then
+`app_popup_press(hwnd, n)`. `app_popups(app="premiere")` shows them any time.
 `premiere_remove_bridge` deletes the panel and puts back only the PlayerDebugMode values the
 install changed. Never run `npx`, install a different CEP panel, or edit the registry by hand.
 

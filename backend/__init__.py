@@ -42,6 +42,9 @@ def execute_jsx(app: str, code: str, params: dict[str, Any] | None = None) -> di
 
 
 def register(api: Any) -> None:
+    from . import jobs
+
+    jobs._API[:] = [api]  # lets a stalled After Effects / Premiere call ask Ducky to press its popup
     # Never launch Adobe or COM-ping during register — host has a 20s watchdog.
     connect = getattr(api, "connection", None)
     if callable(connect):

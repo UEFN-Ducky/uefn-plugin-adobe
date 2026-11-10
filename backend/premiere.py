@@ -261,14 +261,22 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
         script = jobs.build_job(LIBS, "DUCKY_PR.run", command, params or {}, result)
     tmp.write_text(script, encoding="utf-8")
     tmp.replace(job)  # the panel never sees a half-written job
-    data = jobs.wait_result(result, wait, alive=lambda: heartbeat() is not None)
+    data, popups = jobs.wait_unblocking(result, wait, "premiere", alive=lambda: heartbeat() is not None)
     if data is None:
+        if any(p.get("blocking") for p in popups.get("popups") or []):
+            return {"ok": False, "state": "popup", "error": "A dialog in Premiere Pro is waiting for an answer.",
+                    "popups": popups["popups"], "pressed": popups["pressed"],
+                    "hint": "Look at the capture, then app_popup_press(hwnd, n). The change may already have run: read before retrying."}
         if job.exists():
             jobs.remove_quietly(job)
             return {"ok": False, "state": "bridge_closed", "error": "The Ducky Bridge panel did not pick the job up.", "hint": BRIDGE_HINT}
-        return {"ok": False, "state": "error", "error": f"Premiere Pro did not finish within {int(wait)} s (a dialog may be open in Premiere)."}
+        return {"ok": False, "state": "error", "error": f"Premiere Pro did not finish within {int(wait)} s.",
+                "hint": "app_popups(app='premiere') shows anything Premiere is waiting on."}
     jobs.remove_quietly(result)
-    return jobs.shape(data)
+    out = jobs.shape(data)
+    if popups.get("pressed"):
+        out["popups_pressed"] = popups["pressed"]  # e.g. Premiere's File Import Failure, with its text
+    return out
 
 
 def launch(wait: float = 180.0) -> dict[str, Any]:

@@ -100,6 +100,61 @@ def wait_result(path: Path, timeout: float, *, poll: float = 0.1, alive=None) ->
     return None
 
 
+_API: list[Any] = []  # the plugin api, set by register (Ducky's own popup tools)
+
+
+def unblock(app: str) -> dict[str, Any]:
+    """Ask Ducky to press the app's blocking single-OK message boxes and say what else is up
+    (``app_popups``, UEFN Ducky 1.2.489+). {} when Ducky has no such tool."""
+    if not _API or not hasattr(_API[0], "call_tool"):
+        return {}
+    try:
+        raw = _API[0].call_tool("app_popups", {"app": app, "press_lone_ok": True})
+    except Exception:
+        return {}
+    if isinstance(raw, list):
+        raw = next((r for r in raw if isinstance(r, str)), "")
+    try:
+        data = json.loads(raw) if isinstance(raw, str) else raw
+    except ValueError:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    popups = [{k: p.get(k) for k in ("hwnd", "title", "text", "blocking", "buttons", "path") if p.get(k) not in (None, "")}
+              for p in data.get("popups") or []]
+    pressed = [{k: p.get(k) for k in ("title", "label", "text", "closed", "path") if p.get(k) not in (None, "")}
+               for p in data.get("pressed") or []]
+    return {"pressed": pressed, "popups": popups}
+
+
+def wait_unblocking(path: Path, timeout: float, app: str, *, alive=None, every: float = 10.0) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """wait_result, but every ``every`` s with no answer a blocking OK box of ``app`` is pressed
+    (it is what stops the app's scripts). Returns (result, what was found / pressed)."""
+    deadline = time.monotonic() + max(0.5, timeout)
+    seen: dict[str, Any] = {"pressed": [], "popups": []}
+
+    def look() -> bool:
+        report = unblock(app)
+        pressed = report.get("pressed") or []
+        seen["pressed"].extend(pressed)
+        seen["popups"] = report.get("popups") or []
+        return bool(pressed)
+
+    while True:
+        left = deadline - time.monotonic()
+        data = wait_result(path, min(every, max(0.5, left)), alive=alive)
+        if data is not None:
+            return data, seen
+        if alive is not None and not alive():
+            return None, seen
+        if left <= every:
+            # Out of time: one last look. A box pressed now lets the job finish: a short grace.
+            if look():
+                return wait_result(path, 5.0, alive=alive), seen
+            return None, seen
+        look()
+
+
 def remove_quietly(*paths: Path) -> None:
     for p in paths:
         for cand in (p, p.with_name(p.name + ".tmp")):
