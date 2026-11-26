@@ -1,4 +1,5 @@
-"""Windows COM → Illustrator / Photoshop DoJavaScript. PowerShell then cscript."""
+"""Windows COM → Illustrator / Photoshop DoJavaScript (PowerShell then cscript);
+macOS AppleScript → ``do javascript`` through osascript (needs the person's Automation consent)."""
 
 from __future__ import annotations
 
@@ -122,7 +123,54 @@ def _run_hidden(argv: list[str], timeout: float) -> subprocess.CompletedProcess[
     )
 
 
+# macOS bundle ids for the COM ProgIDs; AppleScript reaches the running app (or opens it).
+MAC_BUNDLES = {
+    "Illustrator.Application": "com.adobe.illustrator",
+    "Photoshop.Application": "com.adobe.Photoshop",
+    "AfterEffects.Application": "com.adobe.AfterEffects",
+}
+# The verb each app's AppleScript dictionary uses to run ExtendScript text.
+_MAC_VERB = {"com.adobe.AfterEffects": "DoScript"}
+
+
+def osascript_argv(bundle: str, jsx_path: Path, *, activate: bool = False) -> list[str]:
+    """``osascript`` that runs ``jsx_path`` in the app ``bundle``. The path travels as an argv
+    item, never inside the AppleScript source, so no quoting can break out of it."""
+    verb = _MAC_VERB.get(bundle, "do javascript")
+    lines = ["on run argv", f'tell application id "{bundle}"']
+    if activate:
+        lines.append("activate")
+    lines += [f"{verb} (item 1 of argv)", "end tell", "end run"]
+    argv = ["/usr/bin/osascript"]
+    for line in lines:
+        argv += ["-e", line]
+    return argv + [f"$.evalFile(new File({json.dumps(_slash(jsx_path))}))"]
+
+
+def _mac_exec_jsx(progid: str, jsx_path: Path, *, activate: bool, timeout: float) -> None:
+    r = _run_hidden(osascript_argv(MAC_BUNDLES[progid], jsx_path, activate=activate), timeout)
+    if r.returncode != 0:
+        err = (r.stderr or r.stdout or "osascript failed").strip()
+        if "-1743" in err:  # errAEEventNotPermitted
+            err += (" — allow Ducky to control this app: System Settings > Privacy & Security > "
+                    "Automation > UEFN Ducky.")
+        raise RuntimeError(err)
+
+
 def _exec_jsx(progid: str, full_jsx: str, *, activate: bool, timeout: float) -> None:
+    if sys.platform == "darwin":
+        tmp = Path(tempfile.mkdtemp(prefix="ducky-adobe-"))
+        jsx_path = tmp / f"script-{uuid.uuid4().hex}.jsx"
+        _write_bom(jsx_path, full_jsx)
+        try:
+            _mac_exec_jsx(progid, jsx_path, activate=activate, timeout=timeout)
+        finally:
+            jsx_path.unlink(missing_ok=True)
+            try:
+                tmp.rmdir()
+            except OSError:
+                pass
+        return
     binds: list[str] = []
     titles: list[str] = []
     pids: list[int] = []

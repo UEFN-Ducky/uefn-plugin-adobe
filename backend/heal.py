@@ -12,7 +12,30 @@ from typing import Any
 from .com_runner import ping_app
 
 
+# macOS: the Windows exe name -> the app bundle name it ships as (``Adobe Photoshop 2026.app``).
+MAC_APPS = {
+    "illustrator.exe": "Adobe Illustrator",
+    "photoshop.exe": "Adobe Photoshop",
+    "afterfx.exe": "Adobe After Effects",
+    "adobe premiere pro.exe": "Adobe Premiere Pro",
+}
+
+
+def _mac_app_running(exe_name: str) -> bool:
+    """macOS: a process runs from ``…/<bundle>*.app/Contents/MacOS/`` (pgrep, no AppleEvents)."""
+    bundle = MAC_APPS.get(exe_name.lower())
+    if not bundle:
+        return False
+    try:
+        r = subprocess.run(["pgrep", "-f", f"/{bundle}[^/]*\\.app/Contents/MacOS/"], capture_output=True, timeout=5)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return r.returncode == 0
+
+
 def _win_exe_running(exe_name: str) -> bool:
+    if sys.platform == "darwin":
+        return _mac_app_running(exe_name)
     if sys.platform != "win32":
         return False
     import ctypes
@@ -54,28 +77,39 @@ _EXE_CACHE: dict[str, tuple[float, list[Path]]] = {}
 _EXE_TTL_SEC = 30.0
 
 
-def _glob_exes(pattern: str) -> list[Path]:
+MAC_APP_ROOTS = [Path("/Applications")]
+
+
+def _glob_exes(pattern: str, mac_pattern: str = "") -> list[Path]:
+    """Installed Adobe programs, newest first. macOS: ``mac_pattern`` under /Applications
+    finds the ``.app`` bundles (a folder, opened with ``open``)."""
+    mac = sys.platform == "darwin"
+    if mac:
+        pattern = mac_pattern
+        if not pattern:
+            return []
     now = time.time()
     hit = _EXE_CACHE.get(pattern)
     if hit and now - hit[0] < _EXE_TTL_SEC:
         return hit[1]
     found: list[Path] = []
-    roots = [Path(r"C:\Program Files\Adobe"), Path(r"C:\Program Files (x86)\Adobe")]
+    roots = MAC_APP_ROOTS if mac else [Path(r"C:\Program Files\Adobe"), Path(r"C:\Program Files (x86)\Adobe")]
     for root in roots:
         if not root.is_dir():
             continue
-        found.extend(p for p in root.glob(pattern) if p.is_file())
+        found.extend(p for p in root.glob(pattern) if (p.is_dir() and p.suffix == ".app" if mac else p.is_file()))
     found = sorted(found, key=lambda p: p.stat().st_mtime, reverse=True)
     _EXE_CACHE[pattern] = (now, found)
     return found
 
 
 def illustrator_exes() -> list[Path]:
-    return _prefer_release(_glob_exes("Adobe Illustrator*/Support Files/Contents/Windows/Illustrator.exe"))
+    return _prefer_release(_glob_exes("Adobe Illustrator*/Support Files/Contents/Windows/Illustrator.exe",
+                                      "Adobe Illustrator*/Adobe Illustrator*.app"))
 
 
 def photoshop_exes() -> list[Path]:
-    return _glob_exes("Adobe Photoshop*/Photoshop.exe")
+    return _glob_exes("Adobe Photoshop*/Photoshop.exe", "Adobe Photoshop*/Adobe Photoshop*.app")
 
 
 def _prefer_release(exes: list[Path]) -> list[Path]:
@@ -215,8 +249,9 @@ def _find_named(root: Path, name: str, depth: int) -> Path | None:
 
 
 def _launch(exe: Path) -> None:
-    # GUI launch — do not hide the Adobe window.
-    subprocess.Popen([str(exe)], close_fds=True)
+    # GUI launch — do not hide the Adobe window. macOS: an .app bundle opens through LaunchServices.
+    argv = ["open", str(exe)] if sys.platform == "darwin" else [str(exe)]
+    subprocess.Popen(argv, close_fds=True)
 
 
 def _ensure(app: str, exe_name: str, find, progid: str, *, launch: bool) -> dict[str, Any]:

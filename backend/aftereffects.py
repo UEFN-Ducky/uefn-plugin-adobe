@@ -10,13 +10,14 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from . import jobs
-from .com_runner import _win_no_window_kwargs, plugin_root
+from .com_runner import MAC_BUNDLES, _win_no_window_kwargs, osascript_argv, plugin_root
 
 APP = "aftereffects"
 EXE_NAME = "AfterFX.exe"
@@ -53,7 +54,7 @@ def find_exe() -> Path | None:
         return Path(override)
     from .heal import _glob_exes
 
-    found = _glob_exes("Adobe After Effects*/Support Files/AfterFX.exe")
+    found = _glob_exes("Adobe After Effects*/Support Files/AfterFX.exe", "Adobe After Effects*/Adobe After Effects*.app")
     release = [p for p in found if "(beta)" not in str(p).lower()]
     ordered = release + [p for p in found if p not in release]
     return ordered[0] if ordered else None
@@ -63,6 +64,16 @@ def running() -> bool:
     from .heal import _win_exe_running
 
     return _win_exe_running(EXE_NAME)
+
+
+def _send(exe: Path, job: Path) -> None:
+    """Hand one script to the running After Effects and return at once: ``AfterFX.exe -r`` on
+    Windows, AppleScript ``DoScript`` on macOS (the job writes its own result file either way)."""
+    if sys.platform == "darwin":
+        subprocess.Popen(osascript_argv(MAC_BUNDLES["AfterEffects.Application"], job), close_fds=True,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return
+    subprocess.Popen([str(exe), "-r", str(job)], close_fds=True, **_win_no_window_kwargs())
 
 
 def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | None = None, label: str = "",
@@ -89,7 +100,7 @@ def run(command: str, params: dict[str, Any] | None = None, *, timeout: float | 
     job.write_bytes(script.encode("utf-8-sig"))  # UTF-8 with BOM, so AE reads non-ASCII right
     try:
         # The forwarder hands the script to the running instance and exits.
-        subprocess.Popen([str(exe), "-r", str(job)], close_fds=True, **_win_no_window_kwargs())
+        _send(exe, job)
         data, popups = jobs.wait_unblocking(result, wait, "aftereffects", alive=running)
     except OSError as exc:
         jobs.remove_quietly(job)
@@ -139,7 +150,7 @@ def allow_script_files(exe: Path | None = None) -> bool:
     _jid, job, _result = jobs.new_job(APP)
     job.write_text("(function () {\ntry {\n" + _PREF_JSX + "} catch (e) {}\n})();\n", encoding="utf-8")
     try:
-        subprocess.Popen([str(exe), "-r", str(job)], close_fds=True, **_win_no_window_kwargs())
+        _send(exe, job)
     except OSError:
         return False
     _HEALED[str(exe)] = True
@@ -152,7 +163,9 @@ def launch(wait: float = 120.0) -> dict[str, Any]:
     if exe is None:
         return {"ok": False, "error": "After Effects is not installed"}
     if not running():
-        subprocess.Popen([str(exe)], close_fds=True)
+        from .heal import _launch
+
+        _launch(exe)
     deadline = time.monotonic() + wait
     last: dict[str, Any] = {}
     while time.monotonic() < deadline:

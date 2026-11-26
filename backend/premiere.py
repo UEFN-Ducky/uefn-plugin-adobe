@@ -57,7 +57,7 @@ def find_exe() -> Path | None:
         return Path(override)
     from .heal import _glob_exes
 
-    found = _glob_exes("Adobe Premiere Pro*/Adobe Premiere Pro.exe")
+    found = _glob_exes("Adobe Premiere Pro*/Adobe Premiere Pro.exe", "Adobe Premiere Pro*/Adobe Premiere Pro*.app")
     release = [p for p in found if "(beta)" not in str(p).lower()]
     ordered = release + [p for p in found if p not in release]
     return ordered[0] if ordered else None
@@ -73,6 +73,8 @@ def running() -> bool:
 
 
 def cep_extensions_dir() -> Path:
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Adobe" / "CEP" / "extensions"
     appdata = os.environ.get("APPDATA") or str(Path.home() / "AppData" / "Roaming")
     return Path(appdata) / "Adobe" / "CEP" / "extensions"
 
@@ -97,8 +99,19 @@ def _install_record() -> Path:
     return jobs.job_root(APP) / "install.json"
 
 
+def _defaults(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["/usr/bin/defaults", *args], capture_output=True, text=True, timeout=10)
+
+
 def _debug_mode_keys() -> list[tuple[int, str | None]]:
-    """(csxs version, current PlayerDebugMode or None)."""
+    """(csxs version, current PlayerDebugMode or None). Windows: HKCU\\Software\\Adobe\\CSXS.<n>;
+    macOS: the ``com.adobe.CSXS.<n>`` defaults domain."""
+    if sys.platform == "darwin":
+        out_mac: list[tuple[int, str | None]] = []
+        for v in CSXS_VERSIONS:
+            r = _defaults("read", f"com.adobe.CSXS.{v}", "PlayerDebugMode")
+            out_mac.append((v, r.stdout.strip() if r.returncode == 0 else None))
+        return out_mac
     if sys.platform != "win32":
         return []
     import winreg
@@ -115,6 +128,10 @@ def _debug_mode_keys() -> list[tuple[int, str | None]]:
 
 
 def _set_debug_mode(version: int, value: str | None) -> None:
+    if sys.platform == "darwin":
+        domain = f"com.adobe.CSXS.{version}"
+        _defaults("delete", domain, "PlayerDebugMode") if value is None else _defaults("write", domain, "PlayerDebugMode", value)
+        return
     import winreg
 
     path = rf"Software\Adobe\CSXS.{version}"
@@ -159,7 +176,7 @@ def install_bridge(*, extensions_dir: Path | None = None, set_debug: bool = True
         shutil.rmtree(target)
     shutil.copytree(src, target)
     changed: list[int] = []
-    if set_debug and sys.platform == "win32":
+    if set_debug and sys.platform in ("win32", "darwin"):
         record_path = _install_record()
         try:
             record = json.loads(record_path.read_text(encoding="utf-8"))
@@ -188,7 +205,7 @@ def remove_bridge(*, extensions_dir: Path | None = None) -> dict[str, Any]:
         shutil.rmtree(target)
     restored: list[str] = []
     record_path = _install_record()
-    if sys.platform == "win32" and extensions_dir is None:
+    if sys.platform in ("win32", "darwin") and extensions_dir is None:
         try:
             record = json.loads(record_path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -286,7 +303,9 @@ def launch(wait: float = 180.0) -> dict[str, Any]:
     if not running():
         ensure_bridge()  # before Premiere starts, so it loads the panel on this start
         _INSTALLED_NOW["while_running"] = False
-        subprocess.Popen([str(exe)], close_fds=True)
+        from .heal import _launch
+
+        _launch(exe)
     deadline = time.monotonic() + wait
     while time.monotonic() < deadline:
         if running() and heartbeat() is not None:

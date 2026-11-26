@@ -175,6 +175,100 @@ def test_ae_timeout_turns_on_script_file_access_once(tmp_path: Path) -> None:
     assert len(sent) == 3  # the job, the preference script, the second job
 
 
+# ---------------------------------------------------------------- macOS (AppleScript)
+
+
+@pytest.fixture
+def mac(monkeypatch):
+    import sys
+
+    from backend import heal
+
+    monkeypatch.setattr(sys, "platform", "darwin")
+    heal._EXE_CACHE.clear()
+    yield
+    heal._EXE_CACHE.clear()
+
+
+def test_mac_osascript_carries_the_path_as_an_argument(tmp_path: Path) -> None:
+    from backend.com_runner import osascript_argv
+
+    job = tmp_path / "it's here" / "job.jsx"
+    argv = osascript_argv("com.adobe.AfterEffects", job)
+    src = "\n".join(argv[2:-1:2])
+    assert argv[0] == "/usr/bin/osascript" and 'tell application id "com.adobe.AfterEffects"' in src
+    assert "DoScript (item 1 of argv)" in src and "it's" not in src  # the path never enters the source
+    assert argv[-1] == f"$.evalFile(new File({json.dumps(jobs.slash(job))}))"
+    ps = "\n".join(osascript_argv("com.adobe.Photoshop", job, activate=True)[2:-1:2])
+    assert "do javascript (item 1 of argv)" in ps and "activate" in ps
+
+
+def test_mac_after_effects_job_goes_through_applescript(mac, tmp_path: Path) -> None:
+    sent: list[list[str]] = []
+    app = tmp_path / "Adobe After Effects 2026.app"
+    with (
+        patch.object(aftereffects, "find_exe", return_value=app),
+        patch.object(aftereffects, "running", return_value=True),
+        patch.object(aftereffects.subprocess, "Popen", side_effect=lambda argv, **k: sent.append(argv)),
+        patch.object(aftereffects.jobs, "wait_result", return_value={"ok": True, "result": {"version": "26.0"}}),
+    ):
+        out = aftereffects.run("ping", {})
+    assert out["ok"] is True
+    assert sent[0][0] == "/usr/bin/osascript" and "-r" not in sent[0]
+    assert any('"com.adobe.AfterEffects"' in a for a in sent[0])
+
+
+def test_mac_illustrator_reports_missing_automation_consent(mac) -> None:
+    from backend import com_runner
+
+    seen: list[list[str]] = []
+
+    def fake_run(argv, timeout):
+        seen.append(argv)
+        return subprocess.CompletedProcess(argv, 1, "", "execution error: Not authorized to send Apple events (-1743)")
+
+    with patch.object(com_runner, "_run_hidden", side_effect=fake_run):
+        with pytest.raises(RuntimeError, match="Automation"):
+            com_runner.execute_illustrator("writeResultFile(RESULT_PATH, {ok:true});", {})
+    assert any('"com.adobe.illustrator"' in a for a in seen[0])
+
+
+def test_mac_finds_and_opens_app_bundles(mac, monkeypatch, tmp_path: Path) -> None:
+    from backend import heal
+
+    (tmp_path / "Adobe Photoshop 2026" / "Adobe Photoshop 2026.app").mkdir(parents=True)
+    (tmp_path / "Adobe Premiere Pro 2026" / "Adobe Premiere Pro 2026.app").mkdir(parents=True)
+    monkeypatch.setattr(heal, "MAC_APP_ROOTS", [tmp_path])
+    assert heal.photoshop_exes() == [tmp_path / "Adobe Photoshop 2026" / "Adobe Photoshop 2026.app"]
+    assert premiere.find_exe() == tmp_path / "Adobe Premiere Pro 2026" / "Adobe Premiere Pro 2026.app"
+    assert heal.illustrator_exes() == []
+    calls: list[list[str]] = []
+    monkeypatch.setattr(heal.subprocess, "Popen", lambda argv, **k: calls.append(argv))
+    heal._launch(heal.photoshop_exes()[0])
+    assert calls == [["open", str(tmp_path / "Adobe Photoshop 2026" / "Adobe Photoshop 2026.app")]]
+    monkeypatch.setattr(heal.subprocess, "run", lambda argv, **k: calls.append(argv) or subprocess.CompletedProcess(argv, 0))
+    assert heal._win_exe_running("Photoshop.exe") is True
+    assert calls[-1][:2] == ["pgrep", "-f"] and "Adobe Photoshop" in calls[-1][2]
+
+
+def test_mac_premiere_panel_folder_and_debug_mode(mac, monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(premiere.Path, "home", classmethod(lambda cls: tmp_path))
+    assert premiere.cep_extensions_dir() == tmp_path / "Library" / "Application Support" / "Adobe" / "CEP" / "extensions"
+    calls: list[tuple[str, ...]] = []
+
+    def fake_defaults(*args):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 1 if args[0] == "read" else 0, "", "")
+
+    monkeypatch.setattr(premiere, "_defaults", fake_defaults)
+    monkeypatch.setattr(jobs, "job_root", lambda app: tmp_path)
+    out = premiere.install_bridge()
+    assert out["ok"] and out["debug_mode_set"] == [f"CSXS.{v}" for v in premiere.CSXS_VERSIONS]
+    assert ("write", "com.adobe.CSXS.12", "PlayerDebugMode", "1") in calls
+    removed = premiere.remove_bridge()
+    assert removed["removed"] and ("delete", "com.adobe.CSXS.12", "PlayerDebugMode") in calls
+
+
 # ---------------------------------------------------------------- CEP bridge
 
 
